@@ -42,7 +42,7 @@ jobs:
     - name: Export Android environment variables
       run: |
         echo "ANDROID_SDK_ROOT=${ANDROID_HOME}" >> "$GITHUB_ENV"
-        echo "ANDROID_NDK_ROOT=${ANDROID_NDK_HOME:-$ANDROID_NDK_ROOT}" >> "$GITHUB_ENV"
+        echo "ANDROID_NDK_ROOT=${ANDROID_NDK_HOME:-${ANDROID_HOME}/ndk/${ANDROID_NDK_VERSION}}" >> "$GITHUB_ENV"
 
     - name: Install Qt for Android
       uses: jurplel/install-qt-action@v4
@@ -59,9 +59,9 @@ jobs:
         set -euxo pipefail
         PROJECT_ROOT=$PWD
         mkdir -p libs
-        curl -L https://github.com/KDAB/android_openssl/raw/master/ssl_3/arm64-v8a/libssl_3.so -o libs/libssl_3.so
+        curl -L https://raw.githubusercontent.com/KDAB/android_openssl/32ebe304ff064a9affb699b2185af78e3494f49a/ssl_3/arm64-v8a/libssl_3.so -o libs/libssl_3.so
         echo "33105ff4a18597f82fa9aa4904dc6d47b9c5552d91347ff049026d78d4ba7151  libs/libssl_3.so" | sha256sum -c -
-        curl -L https://github.com/KDAB/android_openssl/raw/master/ssl_3/arm64-v8a/libcrypto_3.so -o libs/libcrypto_3.so
+        curl -L https://raw.githubusercontent.com/KDAB/android_openssl/32ebe304ff064a9affb699b2185af78e3494f49a/ssl_3/arm64-v8a/libcrypto_3.so -o libs/libcrypto_3.so
         echo "ea2d0dc330d24034e15ac9fb7194ee0719b172c502c97a54808f24840afd341f  libs/libcrypto_3.so" | sha256sum -c -
         cd mupdf/platform/java
         ./gradlew assembleRelease -PABI_FILTERS=arm64-v8a
@@ -109,7 +109,7 @@ jobs:
           --android-platform android-${ANDROID_API_LEVEL} \
           --gradle \
           --release
-        APK_PATH=$(find android-build -name "*-release*.apk" | head -n 1 || true)
+        APK_PATH=$(find android-build/build/outputs/apk -name "*-release*.apk" -print | sort | head -n 1 || true)
         if [ -z "$APK_PATH" ]; then
           echo "APK not found"
           exit 1
