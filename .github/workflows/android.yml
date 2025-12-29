@@ -97,7 +97,10 @@ jobs:
         ANDROID_NDK_ROOT: ${{ env.ANDROID_NDK_ROOT }}
       run: |
         set -euxo pipefail
-        DEPLOY_JSON=$(find . -name "android-lib*.so-deployment-settings.json" -print | sort | head -n 1 || true)
+        DEPLOY_JSON="android-libsioyek.so-deployment-settings.json"
+        if [ ! -f "$DEPLOY_JSON" ]; then
+          DEPLOY_JSON=$(find . -name "android-libsioyek.so-deployment-settings.json" -print | sort | head -n 1 || true)
+        fi
         if [ -z "$DEPLOY_JSON" ]; then
           echo "Deployment settings file not found"
           exit 1
@@ -111,8 +114,11 @@ jobs:
           --release
         DEFAULT_APK="android-build/build/outputs/apk/release/android-build-release-unsigned.apk"
         ALT_APK="android-build/build/outputs/apk/release/android-build-release.apk"
+        ALT_SIGNED_APK="android-build/build/outputs/apk/release/android-build-release-signed.apk"
         if [ -f "$DEFAULT_APK" ]; then
           APK_PATH="$DEFAULT_APK"
+        elif [ -f "$ALT_SIGNED_APK" ]; then
+          APK_PATH="$ALT_SIGNED_APK"
         elif [ -f "$ALT_APK" ]; then
           APK_PATH="$ALT_APK"
         else
