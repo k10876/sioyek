@@ -10,6 +10,9 @@ on:
       - 'pdf_viewer_build_config.pro'
       - 'CMakeLists.txt'
 
+permissions:
+  contents: read
+
 env:
   QT_VERSION: '6.7.2'
   QT_ANDROID_ARCH: 'android_arm64_v8a'
