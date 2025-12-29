@@ -18,6 +18,7 @@ env:
   QT_ANDROID_ARCH: 'android_arm64_v8a'
   ANDROID_API_LEVEL: '33'
   ANDROID_NDK_VERSION: '23.1.7779620'
+  ANDROID_BUILD_TYPE: 'debug'
 
 jobs:
   build-android:
@@ -118,10 +119,10 @@ jobs:
           --output android-build \
           --android-platform android-${ANDROID_API_LEVEL} \
           --gradle \
-          --release
-        DEFAULT_APK="android-build/build/outputs/apk/release/android-build-release-unsigned.apk"
-        ALT_APK="android-build/build/outputs/apk/release/android-build-release.apk"
-        ALT_SIGNED_APK="android-build/build/outputs/apk/release/android-build-release-signed.apk"
+          $( [ "$ANDROID_BUILD_TYPE" = "debug" ] && echo "--debug" || echo "--release" )
+        DEFAULT_APK="android-build/build/outputs/apk/${ANDROID_BUILD_TYPE}/android-build-${ANDROID_BUILD_TYPE}.apk"
+        ALT_APK="android-build/build/outputs/apk/${ANDROID_BUILD_TYPE}/android-build-${ANDROID_BUILD_TYPE}-unsigned.apk"
+        ALT_SIGNED_APK="android-build/build/outputs/apk/${ANDROID_BUILD_TYPE}/android-build-${ANDROID_BUILD_TYPE}-signed.apk"
         for candidate in "$DEFAULT_APK" "$ALT_SIGNED_APK" "$ALT_APK"; do
           if [ -f "$candidate" ]; then
             echo "APK_PATH=$candidate" >> "$GITHUB_ENV"
