@@ -39,6 +39,11 @@ jobs:
         build-tools: '33.0.2'
         ndk-version: ${{ env.ANDROID_NDK_VERSION }}
 
+    - name: Export Android environment variables
+      run: |
+        echo "ANDROID_SDK_ROOT=${ANDROID_HOME}" >> "$GITHUB_ENV"
+        echo "ANDROID_NDK_ROOT=${ANDROID_NDK_HOME:-$ANDROID_NDK_ROOT}" >> "$GITHUB_ENV"
+
     - name: Install Qt for Android
       uses: jurplel/install-qt-action@v4
       with:
@@ -52,6 +57,7 @@ jobs:
     - name: Build MuPDF and OpenSSL dependencies
       run: |
         set -euxo pipefail
+        PROJECT_ROOT=$PWD
         mkdir -p libs
         curl -L https://github.com/KDAB/android_openssl/raw/master/ssl_3/arm64-v8a/libssl_3.so -o libs/libssl_3.so
         echo "33105ff4a18597f82fa9aa4904dc6d47b9c5552d91347ff049026d78d4ba7151  libs/libssl_3.so" | sha256sum -c -
@@ -59,7 +65,7 @@ jobs:
         echo "ea2d0dc330d24034e15ac9fb7194ee0719b172c502c97a54808f24840afd341f  libs/libcrypto_3.so" | sha256sum -c -
         cd mupdf/platform/java
         ./gradlew assembleRelease -PABI_FILTERS=arm64-v8a
-        cd ../..
+        cd "$PROJECT_ROOT"
         MUPDF_LIB=$(find mupdf/platform/java -name "libmupdf_java.so" -path "*arm64-v8a*" | head -n 1)
         if [ -z "$MUPDF_LIB" ]; then
           echo "MuPDF android library not found"
