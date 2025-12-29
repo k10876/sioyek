@@ -97,7 +97,7 @@ jobs:
         ANDROID_NDK_ROOT: ${{ env.ANDROID_NDK_ROOT }}
       run: |
         set -euxo pipefail
-        DEPLOY_JSON=$(find . -name "*-deployment-settings.json" | head -n 1)
+        DEPLOY_JSON=$(find . -name "android-lib*.so-deployment-settings.json" -print | sort | head -n 1 || true)
         if [ -z "$DEPLOY_JSON" ]; then
           echo "Deployment settings file not found"
           exit 1
@@ -109,7 +109,15 @@ jobs:
           --android-platform android-${ANDROID_API_LEVEL} \
           --gradle \
           --release
-        APK_PATH=$(find android-build/build/outputs/apk -name "*-release*.apk" -print | sort | head -n 1 || true)
+        DEFAULT_APK="android-build/build/outputs/apk/release/android-build-release-unsigned.apk"
+        ALT_APK="android-build/build/outputs/apk/release/android-build-release.apk"
+        if [ -f "$DEFAULT_APK" ]; then
+          APK_PATH="$DEFAULT_APK"
+        elif [ -f "$ALT_APK" ]; then
+          APK_PATH="$ALT_APK"
+        else
+          APK_PATH=$(find android-build/build/outputs/apk/release -name "*-release*.apk" -print | sort | head -n 1 || true)
+        fi
         if [ -z "$APK_PATH" ]; then
           echo "APK not found"
           exit 1
