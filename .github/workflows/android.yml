@@ -1,4 +1,4 @@
-name: Android Build
+'qtsvg': Android Build
 
 on:
   workflow_dispatch:
@@ -59,7 +59,6 @@ jobs:
         host: 'linux'
         target: 'android'
         arch: ${{ env.QT_ANDROID_ARCH }}
-        modules: 'qtsvg'
         cache: true
 
     - name: Build MuPDF and OpenSSL dependencies
