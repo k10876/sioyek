@@ -54,11 +54,13 @@ jobs:
         set -euxo pipefail
         mkdir -p libs
         curl -L https://github.com/KDAB/android_openssl/raw/master/ssl_3/arm64-v8a/libssl_3.so -o libs/libssl_3.so
+        echo "33105ff4a18597f82fa9aa4904dc6d47b9c5552d91347ff049026d78d4ba7151  libs/libssl_3.so" | sha256sum -c -
         curl -L https://github.com/KDAB/android_openssl/raw/master/ssl_3/arm64-v8a/libcrypto_3.so -o libs/libcrypto_3.so
+        echo "ea2d0dc330d24034e15ac9fb7194ee0719b172c502c97a54808f24840afd341f  libs/libcrypto_3.so" | sha256sum -c -
         cd mupdf/platform/java
         ./gradlew assembleRelease -PABI_FILTERS=arm64-v8a
         cd ../..
-        MUPDF_LIB=$(find mupdf -name "libmupdf_java.so" -path "*arm64-v8a*" | head -n 1)
+        MUPDF_LIB=$(find mupdf/platform/java -name "libmupdf_java.so" -path "*arm64-v8a*" | head -n 1)
         if [ -z "$MUPDF_LIB" ]; then
           echo "MuPDF android library not found"
           exit 1
@@ -101,7 +103,7 @@ jobs:
           --android-platform android-${ANDROID_API_LEVEL} \
           --gradle \
           --release
-        APK_PATH=$(find android-build -name "*.apk" | head -n 1 || true)
+        APK_PATH=$(find android-build -name "*-release*.apk" | head -n 1 || true)
         if [ -z "$APK_PATH" ]; then
           echo "APK not found"
           exit 1
