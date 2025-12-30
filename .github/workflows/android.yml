@@ -2,7 +2,10 @@
 
 on:
   workflow_dispatch:
+  push:
+    branches: [development]
   pull_request:
+    branches: [development]
     paths:
       - 'android/**'
       - '.github/workflows/android.yml'
