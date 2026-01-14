@@ -16,84 +16,25 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: download artifacts
+      uses: actions/download-artifact@v4
     - name: create debug release
       id: create_release
-      uses: actions/create-release@master
+      uses: softprops/action-gh-release@v2
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: debug-${{ github.sha }}
-        release_name: Debug Release ${{ github.sha }}
+        name: Debug Release ${{ github.sha }}
         draft: false
         prerelease: true
-    - name: download artifacts
-      uses: actions/download-artifact@v4
-
-    - name: upload linux debug
-      id: upload-linux-debug
-      uses: actions/upload-release-asset@v1.0.1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./linux-debug-uploads/sioyek-debug-linux.zip
-        asset_name: sioyek-debug-linux.zip
-        asset_content_type: application/zip
-
-    - name: upload linux aarch64 debug
-      id: upload-linux-aarch64-debug
-      uses: actions/upload-release-asset@v1.0.1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./linux-aarch64-debug-uploads/sioyek-debug-linux-aarch64.zip
-        asset_name: sioyek-debug-linux-aarch64.zip
-        asset_content_type: application/zip
-
-    - name: upload windows debug
-      id: upload-windows-debug
-      uses: actions/upload-release-asset@v1.0.1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./windows-debug-uploads/sioyek-debug-windows.zip
-        asset_name: sioyek-debug-windows.zip
-        asset_content_type: application/zip
-
-    - name: upload mac debug
-      id: upload-mac-debug
-      uses: actions/upload-release-asset@v1.0.1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./mac-debug-uploads/sioyek-debug-mac.zip
-        asset_name: sioyek-debug-mac.zip
-        asset_content_type: application/zip
-
-    - name: upload mac arm debug
-      id: upload-mac-arm-debug
-      uses: actions/upload-release-asset@v1.0.1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./mac-arm-debug-uploads/sioyek-debug-mac-arm.zip
-        asset_name: sioyek-debug-mac-arm.zip
-        asset_content_type: application/zip
-
-    - name: upload android debug
-      id: upload-android-debug
-      uses: actions/upload-release-asset@v1.0.1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./android-debug-uploads/sioyek-debug-android.apk
-        asset_name: sioyek-debug-android.apk
-        asset_content_type: application/vnd.android.package-archive
+        files: |
+          ./linux-debug-uploads/sioyek-debug-linux.zip
+          ./linux-aarch64-debug-uploads/sioyek-debug-linux-aarch64.zip
+          ./windows-debug-uploads/sioyek-debug-windows.zip
+          ./mac-debug-uploads/sioyek-debug-mac.zip
+          ./mac-arm-debug-uploads/sioyek-debug-mac-arm.zip
+          ./android-debug-uploads/sioyek-debug-android.apk
 
   build-linux-debug:
 
@@ -429,8 +370,23 @@ jobs:
       working-directory: android
       run: |
         chmod +x gradlew
+        echo "Building debug APK..."
         ./gradlew assembleDebug --no-daemon
-        find . -name "*debug*.apk" -exec cp {} ../sioyek-debug-android.apk \; || find . -name "*.apk" -exec cp {} ../sioyek-debug-android.apk \;
+        APK_PATH=$(find . -name "*debug*.apk" -print -quit)
+        if [ -n "$APK_PATH" ]; then
+          echo "Found debug APK at: $APK_PATH"
+          cp "$APK_PATH" ../sioyek-debug-android.apk
+        else
+          echo "No debug APK found, looking for any APK..."
+          APK_PATH=$(find . -name "*.apk" -print -quit)
+          if [ -n "$APK_PATH" ]; then
+            echo "Found APK at: $APK_PATH"
+            cp "$APK_PATH" ../sioyek-debug-android.apk
+          else
+            echo "ERROR: No APK file found"
+            exit 1
+          fi
+        fi
 
     - name: upload android debug artifact
       uses: actions/upload-artifact@v4
