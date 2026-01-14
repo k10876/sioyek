@@ -1,0 +1,439 @@
+
+name: Debug Build Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - development
+      - dev
+
+jobs:
+  upload-debug-release:
+    if: ${{ (github.event_name == 'workflow_dispatch') || (github.event_name != 'pull_request') }}
+    runs-on: ubuntu-22.04
+    needs: [build-linux-debug, build-linux-aarch64-debug, build-windows-debug, build-mac-debug, build-mac-arm-debug, build-android-debug]
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: create debug release
+      id: create_release
+      uses: actions/create-release@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: debug-${{ github.sha }}
+        release_name: Debug Release ${{ github.sha }}
+        draft: false
+        prerelease: true
+    - name: download artifacts
+      uses: actions/download-artifact@v4
+
+    - name: upload linux debug
+      id: upload-linux-debug
+      uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./linux-debug-uploads/sioyek-debug-linux.zip
+        asset_name: sioyek-debug-linux.zip
+        asset_content_type: application/zip
+
+    - name: upload linux aarch64 debug
+      id: upload-linux-aarch64-debug
+      uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./linux-aarch64-debug-uploads/sioyek-debug-linux-aarch64.zip
+        asset_name: sioyek-debug-linux-aarch64.zip
+        asset_content_type: application/zip
+
+    - name: upload windows debug
+      id: upload-windows-debug
+      uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./windows-debug-uploads/sioyek-debug-windows.zip
+        asset_name: sioyek-debug-windows.zip
+        asset_content_type: application/zip
+
+    - name: upload mac debug
+      id: upload-mac-debug
+      uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./mac-debug-uploads/sioyek-debug-mac.zip
+        asset_name: sioyek-debug-mac.zip
+        asset_content_type: application/zip
+
+    - name: upload mac arm debug
+      id: upload-mac-arm-debug
+      uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./mac-arm-debug-uploads/sioyek-debug-mac-arm.zip
+        asset_name: sioyek-debug-mac-arm.zip
+        asset_content_type: application/zip
+
+    - name: upload android debug
+      id: upload-android-debug
+      uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./android-debug-uploads/sioyek-debug-android.apk
+        asset_name: sioyek-debug-android.apk
+        asset_content_type: application/vnd.android.package-archive
+
+  build-linux-debug:
+
+    runs-on: ubuntu-20.04
+
+    steps:
+    - name: Cache apt-get packages
+      uses: actions/cache@v4
+      env:
+        cache-name: cache-deb-packages-debug
+      with:
+        path: /var/cache/apt/archives
+        key: ${{ runner.os }}-debug-build-${{ env.cache-name }}-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-debug-build-${{ env.cache-name }}-
+          ${{ runner.os }}-debug-build-
+          ${{ runner.os }}-debug-
+
+    - name: Set up GCC
+      uses: egor-tensin/setup-gcc@v1
+      with:
+        version: 9
+        platform: x64
+
+    - uses: actions/checkout@v4
+      with:
+            submodules: 'recursive'
+            ref: development
+
+    - name: Install dependencies
+      run: sudo apt install libharfbuzz-dev libxrandr-dev libxi-dev libglu1-mesa-dev fuse libxcb-cursor0 libspeechd2
+      
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: '6.7.2'
+        modules: 'all'
+        cache: true
+
+    - name: Build mupdf
+      run: |
+        cd mupdf
+        make USE_SYSTEM_HARFBUZZ=yes -j$(nproc)
+        cd ..
+
+    - name: Build Debug
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: |
+        mkdir -p build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Debug
+        make -j$(nproc)
+        cd ..
+        zip -j sioyek-debug-linux.zip build/sioyek pdf_viewer/prefs.config pdf_viewer/prefs_user.config pdf_viewer/keys.config pdf_viewer/keys_user.config tutorial.pdf
+        zip -r sioyek-debug-linux.zip pdf_viewer/shaders
+      env:
+        CC:   gcc-9
+        CXX:  g++-9
+
+    - name: upload linux debug artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-debug-uploads
+        path: sioyek-debug-linux.zip
+
+    - name: Workaround apt-get cache permission
+      run: |
+        export USER_NAME=$(whoami)
+        sudo chown -R $USER_NAME /var/cache/apt/archives
+
+  build-linux-aarch64-debug:
+
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Cache apt-get packages
+      uses: actions/cache@v4
+      env:
+        cache-name: cache-deb-packages-aarch64-debug
+      with:
+        path: /var/cache/apt/archives
+        key: ${{ runner.os }}-aarch64-debug-build-${{ env.cache-name }}-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-aarch64-debug-build-${{ env.cache-name }}-
+          ${{ runner.os }}-aarch64-debug-build-
+          ${{ runner.os }}-aarch64-debug-
+
+    - uses: actions/checkout@v4
+      with:
+            submodules: 'recursive'
+            ref: development
+
+    - name: Install cross-compilation tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+        sudo apt-get install -y qemu-user-static
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: arm64
+
+    - name: Build in aarch64 container
+      uses: uraimo/run-on-arch-action@v2
+      with:
+        arch: aarch64
+        distro: ubuntu22.04
+        githubToken: ${{ github.token }}
+        install: |
+          apt-get update
+          apt-get install -y build-essential cmake git wget
+          apt-get install -y libharfbuzz-dev libxrandr-dev libxi-dev libglu1-mesa-dev fuse libxcb-cursor0 libspeechd-dev
+          apt-get install -y qt6-base-dev qt6-tools-dev qt6-tools-dev-tools qt6-declarative-dev qt6-speech-dev libqt6svg6-dev libqt6opengl6-dev
+          apt-get install -y zlib1g-dev libsqlite3-dev
+        run: |
+          cd mupdf
+          make USE_SYSTEM_HARFBUZZ=yes -j$(nproc)
+          cd ..
+          mkdir -p build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Debug
+          make -j$(nproc)
+          cd ..
+          zip -j sioyek-debug-linux-aarch64.zip build/sioyek pdf_viewer/prefs.config pdf_viewer/prefs_user.config pdf_viewer/keys.config pdf_viewer/keys_user.config tutorial.pdf
+          zip -r sioyek-debug-linux-aarch64.zip pdf_viewer/shaders
+
+    - name: upload linux aarch64 debug artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-aarch64-debug-uploads
+        path: sioyek-debug-linux-aarch64.zip
+
+    - name: Workaround apt-get cache permission
+      run: |
+        export USER_NAME=$(whoami)
+        sudo chown -R $USER_NAME /var/cache/apt/archives
+
+  build-windows-debug:
+
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+            submodules: 'recursive'
+            ref: development
+    
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: '6.7.2'
+        modules: 'all'
+        cache: true
+
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1.0.2
+
+    - name: Add msvc-dev-cmd
+      uses: ilammy/msvc-dev-cmd@v1
+
+    - name: Build mupdf
+      shell: cmd
+      run: |
+        cd mupdf
+        nmake -f platform\win32\Makefile.msvc HAVE_OBJCOPY=no HAVE_GLUT=no
+        cd ..
+
+    - name: Build Debug Sioyek
+      shell: cmd
+      run: |
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Debug
+        cmake --build . --config Debug
+        cd ..
+        powershell Compress-Archive -Path build\Debug\sioyek.exe,pdf_viewer\prefs.config,pdf_viewer\prefs_user.config,pdf_viewer\keys.config,pdf_viewer\keys_user.config,tutorial.pdf,pdf_viewer\shaders -DestinationPath sioyek-debug-windows.zip
+
+    - name: upload windows debug artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-debug-uploads
+        path: sioyek-debug-windows.zip
+        
+  build-mac-debug:
+
+    runs-on: macos-13
+
+    steps:
+
+    - uses: actions/checkout@v4
+      with:
+            submodules: 'recursive'
+            ref: development
+
+    - name: Cache Homebrew packages
+      uses: actions/cache@v4
+      env:
+        cache-name: homebrew-debug
+      with:
+        path: ~/Library/Caches/Homebrew
+        key: ${{ runner.os }}-intel-debug-build-${{ env.cache-name }}-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-intel-debug-build-${{ env.cache-name }}-
+          ${{ runner.os }}-intel-debug-build-
+          ${{ runner.os }}-intel-debug-
+
+    - name: Install dependencies
+      run: brew install freeglut mesa harfbuzz 
+      
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: '6.7.2'
+        modules: 'all'
+        cache: true
+
+    - name: Build mupdf
+      run: |
+        cd mupdf
+        make USE_SYSTEM_HARFBUZZ=yes -j$(sysctl -n hw.logicalcpu)
+        cd ..
+
+    - name: Build Debug
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: |
+        mkdir -p build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Debug
+        make -j$(sysctl -n hw.logicalcpu)
+        cd ..
+        zip -j sioyek-debug-mac.zip build/sioyek pdf_viewer/prefs.config pdf_viewer/prefs_user.config pdf_viewer/keys.config pdf_viewer/keys_user.config tutorial.pdf
+        zip -r sioyek-debug-mac.zip pdf_viewer/shaders
+        
+    - name: upload mac debug artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: mac-debug-uploads
+        path: sioyek-debug-mac.zip
+
+  build-mac-arm-debug:
+
+    runs-on: macos-14
+
+    steps:
+
+    - uses: actions/checkout@v4
+      with:
+            submodules: 'recursive'
+            ref: development
+
+    - name: Cache Homebrew packages
+      uses: actions/cache@v4
+      env:
+        cache-name: homebrew-debug
+      with:
+        path: ~/Library/Caches/Homebrew
+        key: ${{ runner.os }}-arm-debug-build-${{ env.cache-name }}-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-arm-debug-build-${{ env.cache-name }}-
+          ${{ runner.os }}-arm-debug-build-
+          ${{ runner.os }}-arm-debug-
+
+    - name: Install dependencies
+      run: brew install freeglut mesa harfbuzz 
+      
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: '6.7.2'
+        modules: 'all'
+        cache: true
+
+    - name: Build mupdf
+      run: |
+        cd mupdf
+        make USE_SYSTEM_HARFBUZZ=yes -j$(sysctl -n hw.logicalcpu)
+        cd ..
+
+    - name: Build Debug
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: |
+        mkdir -p build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Debug
+        make -j$(sysctl -n hw.logicalcpu)
+        cd ..
+        zip -j sioyek-debug-mac-arm.zip build/sioyek pdf_viewer/prefs.config pdf_viewer/prefs_user.config pdf_viewer/keys.config pdf_viewer/keys_user.config tutorial.pdf
+        zip -r sioyek-debug-mac-arm.zip pdf_viewer/shaders
+        
+    - name: upload mac arm debug artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: mac-arm-debug-uploads
+        path: sioyek-debug-mac-arm.zip
+
+  build-android-debug:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+            submodules: 'recursive'
+            ref: development
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Install Qt for Android
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: '6.7.2'
+        host: 'linux'
+        target: 'android'
+        arch: 'android_arm64_v8a'
+        modules: 'all'
+        cache: true
+
+    - name: Build mupdf for Android
+      run: |
+        cd mupdf
+        make USE_SYSTEM_HARFBUZZ=no generate
+        cd ..
+
+    - name: Build Android Debug APK with Gradle
+      working-directory: android
+      run: |
+        chmod +x gradlew
+        ./gradlew assembleDebug --no-daemon
+        find . -name "*debug*.apk" -exec cp {} ../sioyek-debug-android.apk \; || find . -name "*.apk" -exec cp {} ../sioyek-debug-android.apk \;
+
+    - name: upload android debug artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-debug-uploads
+        path: sioyek-debug-android.apk
