@@ -9,6 +9,15 @@
 
 class CachedChecksummer;
 
+struct MarkInDatabase {
+    std::string checksum;
+    char symbol;
+    float offset_y;
+    std::optional<float> offset_x;
+    std::optional<float> zoom_level;
+    std::wstring uuid;
+};
+
 class DatabaseManager {
 private:
     sqlite3* local_db;
@@ -69,6 +78,7 @@ public:
     bool select_opened_books_path_values(std::vector<std::wstring>& out_result);
     bool select_opened_books_path_and_doc_names(std::vector<std::pair<std::wstring, std::wstring>>& out_result);
     bool delete_mark_with_symbol(char symbol);
+    bool delete_mark_with_uuid(const std::string& uuid);
     bool select_global_mark(char symbol, std::vector<std::pair<std::string, float>>& out_result);
     bool delete_opened_book(const std::string& book_path);
     bool delete_highlight(const std::string& uuid);
@@ -108,6 +118,7 @@ public:
     void migrate_version_0_to_1();
     void migrate_version_1_to_2();
     bool select_all_mark_ids(std::vector<int>& mark_ids);
+    bool select_all_marks(std::vector<MarkInDatabase>& marks);
     bool select_all_bookmark_ids(std::vector<int>& mark_ids);
     bool select_all_highlight_ids(std::vector<int>& mark_ids);
     bool select_all_portal_ids(std::vector<int>& mark_ids);

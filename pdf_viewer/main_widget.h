@@ -88,6 +88,11 @@ struct BookmarkMoveData {
     AbsoluteDocumentPos initial_mouse_position;
 };
 
+struct FixedVelocityState {
+    float velocity_y;
+    float velocity_x;
+};
+
 
 struct PortalMoveData {
     int index;
@@ -628,6 +633,7 @@ public:
     void handle_horizontal_move(int amount);
     void handle_goto_portal_list();
     void handle_goto_bookmark();
+    void handle_show_marks();
     void handle_goto_bookmark_global();
     std::wstring handle_add_highlight(char symbol);
     void handle_goto_highlight();
@@ -1010,6 +1016,8 @@ public:
     AbsoluteDocumentPos get_mouse_abspos();
     void move_selected_bookmark_to_mouse_cursor();
     bool handle_annotation_move_finish();
+    std::optional<FixedVelocityState> get_continuous_fixed_velocity_state() const;
+    void restore_fixed_velocity_state(const FixedVelocityState& fixed_velocity_state);
     void set_fixed_velocity(float vel_y, float vel_x, std::optional<float> y_move_amount={});
     QMenuBar* create_main_menu_bar();
     void create_menu_from_menu_node(QMenu* parent, MenuNode* items, std::unordered_map<std::string, std::vector<std::string>>& command_key_mappings);
@@ -1025,6 +1033,7 @@ public:
 
     void select_next_char();
     void unselect_last_char();
+    void select_word_under_cursor();
 };
 
 MainWidget* get_window_with_window_id(int window_id);

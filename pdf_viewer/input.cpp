@@ -1,5 +1,6 @@
 #include <QtCore/qcontainerfwd.h>
 #include <cstdlib>
+#include <deque>
 #include <iostream>
 #include <vector>
 #include <string>
@@ -15,12 +16,17 @@
 #include <qclipboard.h>
 #include <qguiapplication.h>
 
+#include "coordinates.h"
 #include "utils.h"
 #include "input.h"
 #include "main_widget.h"
 #include "ui.h"
 #include "document.h"
 #include "document_view.h"
+
+#ifdef Q_OS_MACOS
+extern "C" void showLookupForString(WId winId, const char* text, double x, double y);
+#endif
 
 extern bool SHOULD_WARN_ABOUT_USER_KEY_OVERRIDE;
 extern bool USE_LEGACY_KEYBINDS;
@@ -2393,6 +2399,18 @@ public:
     }
 };
 
+class ShowMarks : public GenericGotoLocationCommand {
+public:
+    static inline const std::string cname = "show_marks";
+    static inline const std::string hname = "Show the list of the current marks in all documents.";
+    ShowMarks(MainWidget* w) : GenericGotoLocationCommand(cname, w) {};
+
+    void handle_generic_requirement() {
+        widget->handle_show_marks();
+    }
+};
+
+
 class GotoBookmarkCommand : public GenericGotoLocationCommand {
 public:
     static inline const std::string cname = "goto_bookmark";
@@ -2998,6 +3016,7 @@ public:
 class MoveSmoothCommand : public Command {
     bool was_held = false;
     float velocity_multiplier = 1.0f;
+    std::optional<FixedVelocityState> fixed_velocity_state_to_restore = {};
 public:
     MoveSmoothCommand(std::string name, MainWidget* w, float velocity_mult=1.0f) : Command(name, w) {
         velocity_multiplier = velocity_mult;
@@ -3029,6 +3048,10 @@ public:
             }
         }
         else {
+            if (!fixed_velocity_state_to_restore.has_value()) {
+                fixed_velocity_state_to_restore = widget->get_continuous_fixed_velocity_state();
+            }
+
             if (is_down() || is_up()){
                 widget->handle_move_smooth_hold(is_down());
                 widget->set_fixed_velocity(is_down() ? -SMOOTH_MOVE_MAX_VELOCITY * velocity_multiplier : SMOOTH_MOVE_MAX_VELOCITY * velocity_multiplier, 0);
@@ -3041,7 +3064,13 @@ public:
     }
 
     void perform_up() {
-        widget->set_fixed_velocity(0, 0);
+        if (fixed_velocity_state_to_restore.has_value()) {
+            widget->restore_fixed_velocity_state(fixed_velocity_state_to_restore.value());
+            fixed_velocity_state_to_restore = {};
+        }
+        else {
+            widget->set_fixed_velocity(0, 0);
+        }
     }
 
     bool is_holdable() {
@@ -4013,6 +4042,45 @@ public:
     }
 
 };
+
+#ifdef Q_OS_MACOS
+class MacosLookupCommand : public Command {
+public:
+    static inline const std::string cname = "macos_lookup";
+    static inline const std::string hname = "Look up selected text (macOS)";
+
+    MacosLookupCommand(MainWidget* w) : Command(cname, w) {};
+
+    void perform() {
+        std::wstring selected_text = widget->get_selected_text();
+
+        if (selected_text.empty()){
+            widget->select_word_under_cursor();
+            selected_text = widget->get_selected_text();
+        }
+
+        if (!selected_text.empty()) {
+            std::string utf8_text = utf8_encode(selected_text);
+
+            double x = widget->width() / 2.0;
+            double y = widget->height() / 2.0;
+
+            std::vector<AbsoluteRect> char_rects;
+            std::deque<AbsoluteRect> individual_char_rects = *widget->main_document_view->get_selected_character_rects();
+            merge_selected_character_rects(individual_char_rects, char_rects);
+
+            if (!char_rects.empty()) {
+                AbsoluteDocumentPos center_pos = char_rects.front().center();
+                WindowPos window_pos = center_pos.to_window(widget->main_document_view);
+                x = window_pos.x;
+                y = window_pos.y;
+            }
+
+            showLookupForString(widget->winId(), utf8_text.c_str(), x, y);
+        }
+    }
+};
+#endif
 
 class CopyAllTextCommand : public Command {
 public:
@@ -5816,7 +5884,7 @@ class DebugCommand : public Command {
 public:
     inline static const std::string cname = "debug";
     inline static const std::string hname = "[internal]";
-    static inline const bool developer_only = true;
+    static inline const bool developer_only = false;
 
     DebugCommand(MainWidget* w) : Command(cname, w) {};
 
@@ -7040,6 +7108,7 @@ CommandManager::CommandManager(ConfigManager* config_manager) {
     register_command<IncreaseFreetextBookmarkFontSizeCommand>();
     register_command<DecreaseFreetextBookmarkFontSizeCommand>();
     register_command<GotoPortalListCommand>();
+    register_command<ShowMarks>();
     register_command<GotoBookmarkCommand>();
     register_command<GotoBookmarkGlobalCommand>();
     register_command<GotoHighlightGlobalCommand>();
@@ -7065,6 +7134,9 @@ CommandManager::CommandManager(ConfigManager* config_manager) {
     register_command<OpenDocumentEmbeddedCommand>();
     register_command<OpenDocumentEmbeddedFromCurrentPathCommand>();
     register_command<CopyCommand>();
+#ifdef Q_OS_MACOS
+    register_command<MacosLookupCommand>();
+#endif
     register_command<CopyAllTextCommand>();
     register_command<CopyCurrentChapterTextCommand>();
     register_command<ToggleFullscreenCommand>();

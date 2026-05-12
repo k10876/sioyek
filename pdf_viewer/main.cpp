@@ -138,18 +138,30 @@ extern bool NO_AUTO_CONFIG;
 extern bool DEFAULT_DARK_MODE;
 
 
-std::wstring strip_uri(std::wstring pdf_file_name) {
+std::wstring strip_uri(std::wstring pdf_file_name, std::optional<int>* out_page) {
 
-    if (pdf_file_name.size() > 1) {
-        if ((pdf_file_name[0] == '"') && (pdf_file_name[pdf_file_name.size() - 1] == '"')) {
-            pdf_file_name = pdf_file_name.substr(1, pdf_file_name.size() - 2);
-        }
-        // support URIs like this: file:///home/user/file.pdf
-        if (QString::fromStdWString(pdf_file_name).startsWith("file://")) {
-            return pdf_file_name.substr(7, pdf_file_name.size() - 7);
-        }
+    QString pdf_file_name_qstring = QString::fromStdWString(pdf_file_name);
+    if (pdf_file_name_qstring.size() > 2 && pdf_file_name_qstring[0] == '"' && pdf_file_name_qstring[pdf_file_name_qstring.size() - 1] == '"') {
+        pdf_file_name_qstring = pdf_file_name_qstring.mid(1, pdf_file_name_qstring.size() - 2);
     }
-    return pdf_file_name;
+
+    if (pdf_file_name_qstring.startsWith("file:")) {
+        QUrl url = QUrl::fromUserInput(pdf_file_name_qstring, QString(), QUrl::AssumeLocalFile);
+        if (!url.isLocalFile()) return pdf_file_name_qstring.toStdWString();
+
+        if (out_page) {
+            QUrlQuery fragment_query{url.fragment()};
+
+            bool ok;
+            int page = fragment_query.queryItemValue("page", QUrl::FullyDecoded).toInt(&ok);
+            if (ok) *out_page = page - 1;
+        }
+
+        return url.path().toStdWString();
+    }
+    else{
+        return pdf_file_name_qstring.toStdWString();
+    }
 }
 
 QStringList convert_arguments(QStringList input_args) {
@@ -167,7 +179,7 @@ QStringList convert_arguments(QStringList input_args) {
 
     for (auto arg : input_args) {
         if (arg == path_arg) {
-            std::wstring path_wstring = strip_uri(arg.toStdWString());
+            std::wstring path_wstring = strip_uri(arg.toStdWString(), {});
             Path path_object(path_wstring);
             output_args.push_back(QString::fromStdWString(path_object.get_path()));
         }
@@ -487,7 +499,7 @@ MainWidget* handle_args(const QStringList& arguments, QLocalSocket* origin=nullp
         y_loc = parser->value("yloc").toFloat();
     }
 
-    pdf_file_name = strip_uri(pdf_file_name);
+    pdf_file_name = strip_uri(pdf_file_name, &page);
 
     if ((pdf_file_name.size() > 0) && (!QFile::exists(QString::fromStdWString(pdf_file_name)))) {
 #ifdef SIOYEK_ANDROID

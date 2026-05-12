@@ -119,6 +119,22 @@ static int mark_select_callback(void* res_vector, int argc, char** argv, char** 
     return 0;
 }
 
+static int mark_in_database_select_callback(void* res_vector, int argc, char** argv, char** col_name) {
+    std::vector<MarkInDatabase>* res = (std::vector<MarkInDatabase>*)res_vector;
+    assert(argc == 6);
+
+    MarkInDatabase m;
+    m.checksum = argv[0] ? argv[0] : "";
+    m.symbol = argv[1] ? argv[1][0] : 0;
+    m.offset_y = argv[2] ? atof(argv[2]) : 0.0f;
+    if (argv[3]) m.offset_x = atof(argv[3]);
+    if (argv[4]) m.zoom_level = atof(argv[4]);
+    m.uuid = argv[5] ? utf8_decode(argv[5]) : L"";
+
+    res->push_back(m);
+    return 0;
+}
+
 static int global_mark_select_callback(void* res_vector, int argc, char** argv, char** col_name) {
 
     std::vector<std::pair<std::string, float>>* res = (std::vector<std::pair<std::string, float>>*)res_vector;
@@ -731,6 +747,19 @@ bool DatabaseManager::delete_mark_with_symbol(char symbol) {
     int error_code = sqlite3_exec(global_db, utf8_encode(ss.str()).c_str(), null_callback, 0, &error_message);
     return handle_error(
         "delete_mark_with_symbol",
+        error_code,
+        error_message);
+}
+
+bool DatabaseManager::delete_mark_with_uuid(const std::string& uuid) {
+
+    std::wstringstream ss;
+    ss << "DELETE FROM marks where uuid='" << esc(uuid) << "';";
+    char* error_message = nullptr;
+
+    int error_code = sqlite3_exec(global_db, utf8_encode(ss.str()).c_str(), null_callback, 0, &error_message);
+    return handle_error(
+        "delete_mark_with_uuid",
         error_code,
         error_message);
 }
@@ -1783,6 +1812,20 @@ bool DatabaseManager::select_all_mark_ids(std::vector<int>& mark_ids) {
         error_message);
 }
 
+bool DatabaseManager::select_all_marks(std::vector<MarkInDatabase>& marks){
+    const char* sql = "SELECT document_path, symbol, offset_y, offset_x, zoom_level, uuid FROM marks";
+    char* error_message = nullptr;
+    int error_code = sqlite3_exec(global_db, sql, mark_in_database_select_callback, &marks, &error_message);
+    if (!handle_error(
+        "select_all_marks",
+        error_code,
+        error_message)) {
+        return false;
+    }
+
+    return true;
+}
+
 bool DatabaseManager::select_all_bookmark_ids(std::vector<int>& bookmark_ids) {
     char* error_message = nullptr;
     int error_code = sqlite3_exec(global_db, "select id from bookmarks", id_callback, &bookmark_ids, &error_message);
@@ -1881,7 +1924,7 @@ std::wstring encode_variant(QVariant var) {
 
 
     std::vector<QString> specials = { "CURRENT_TIMESTAMP", "datetime('now')" };
-    if ((var.typeId() == QMetaType::QString) || (var.typeId() == QMetaType::Char)) {
+    if ((var.typeId() == QMetaType::QString) || (var.typeId() == QMetaType::QChar)) {
         if (std::find(specials.begin(), specials.end(), var.toString()) != specials.end()) {
             return var.toString().toStdWString();
         }

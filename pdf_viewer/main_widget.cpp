@@ -195,6 +195,10 @@ extern bool VIMTEX_WSL_FIX;
 extern float RULER_AUTO_MOVE_SENSITIVITY;
 extern float TTS_RATE;
 extern std::wstring HOLD_MIDDLE_CLICK_COMMAND;
+extern std::wstring RIGHT_CLICK_SCROLL_UP_COMMAND;
+extern std::wstring RIGHT_CLICK_SCROLL_DOWN_COMMAND;
+extern std::wstring LEFT_CLICK_SCROLL_UP_COMMAND;
+extern std::wstring LEFT_CLICK_SCROLL_DOWN_COMMAND;
 extern float FREETEXT_BOOKMARK_FONT_SIZE;
 extern std::wstring BOOK_SCAN_PATH;
 extern bool USE_RULER_TO_HIGHLIGHT_SYNCTEX_LINE;
@@ -1631,7 +1635,15 @@ void MainWidget::handle_escape() {
     selected_portal_index = -1;
     //current_pending_command = {};
 
+    bool had_widget = current_widget_stack.size() > 0;
     pop_current_widget();
+    if (had_widget) {
+        // return early if we just closed a widget, for example we don't want to lose the ruler position
+        validate_render();
+        setFocus();
+        return;
+    }
+
 
     if (main_document_view) {
         main_document_view->handle_escape();
@@ -2039,6 +2051,10 @@ void MainWidget::open_document(const std::wstring& path, std::optional<float> of
 
     main_document_view->on_view_size_change(main_window_width, main_window_height);
     main_document_view->open_document(path, &this->is_render_invalidated);
+    if (!doc()){
+        // failed to open document
+        return;
+    }
     adjust_two_page_mode_document_zoom_and_offset(doc()->get_path());
 
     if (doc()) {
@@ -3216,6 +3232,8 @@ void MainWidget::wheelEvent(QWheelEvent* wevent) {
 
     bool is_control_pressed = QApplication::queryKeyboardModifiers().testFlag(Qt::ControlModifier) ||
         QApplication::queryKeyboardModifiers().testFlag(Qt::MetaModifier);
+    bool is_right_click_held_down = (QApplication::mouseButtons().testFlag(Qt::RightButton));
+    bool is_left_click_held_down = (QApplication::mouseButtons().testFlag(Qt::LeftButton));
     bool zoom_p = is_control_pressed;
 
     bool is_shift_pressed = QApplication::queryKeyboardModifiers().testFlag(Qt::ShiftModifier);
@@ -3255,6 +3273,26 @@ void MainWidget::wheelEvent(QWheelEvent* wevent) {
 
     bool is_touchpad = wevent->pointingDevice()->pointerType() == QPointingDevice::PointerType::Finger;
 
+    if (is_right_click_held_down){
+        if (wevent->angleDelta().y() > 0 && RIGHT_CLICK_SCROLL_UP_COMMAND.size() > 0) {
+            execute_macro_if_enabled(RIGHT_CLICK_SCROLL_UP_COMMAND);
+            return;
+        }
+        else if (wevent->angleDelta().y() < 0 && RIGHT_CLICK_SCROLL_DOWN_COMMAND.size() > 0) {
+            execute_macro_if_enabled(RIGHT_CLICK_SCROLL_DOWN_COMMAND);
+            return;
+        }
+    }
+    if (is_left_click_held_down){
+        if (wevent->angleDelta().y() > 0 && LEFT_CLICK_SCROLL_UP_COMMAND.size() > 0) {
+            execute_macro_if_enabled(LEFT_CLICK_SCROLL_UP_COMMAND);
+            return;
+        }
+        else if (wevent->angleDelta().y() < 0 && LEFT_CLICK_SCROLL_DOWN_COMMAND.size() > 0) {
+            execute_macro_if_enabled(LEFT_CLICK_SCROLL_DOWN_COMMAND);
+            return;
+        }
+    }
 
     if ((!zoom_p) && (!scroll_horizontally_p)) {
         if (opengl_widget->get_overview_page()) {
@@ -5803,6 +5841,43 @@ void MainWidget::handle_goto_portal_list() {
     show_current_widget();
 }
 
+void MainWidget::handle_show_marks() {
+    std::vector<MarkInDatabase> marks;
+    db_manager->select_all_marks(marks);
+    std::vector<std::wstring> option_names;
+    std::vector<std::wstring> option_location_strings;
+
+    for (const auto& mark : marks) {
+        std::wstring mark_type_string = L"";
+        if (isupper(mark.symbol)) {
+            mark_type_string = L"[G]";
+        }
+        else {
+            mark_type_string = L"[L]";
+        }
+        option_names.push_back(ITEM_LIST_PREFIX + L" " + mark_type_string + L" " + static_cast<wchar_t>(mark.symbol));
+        // option_location_strings.push_back(checksummer->get_path(mark.document_checksum).value_or(L"[ERROR]"));
+        std::wstring doc_path = checksummer->get_path(mark.checksum).value_or(L"[ERROR]");
+        option_location_strings.push_back(doc_path);
+    }
+
+    set_filtered_select_menu<MarkInDatabase>(this, FUZZY_SEARCHING, MULTILINE_MENUS, { option_names, option_location_strings }, marks, -1,
+        [&](MarkInDatabase* mark) {
+            if (mark->checksum == doc()->get_checksum()) {
+                main_document_view->goto_mark(mark->symbol);
+            }
+            else {
+                std::wstring doc_path = checksummer->get_path(mark->checksum).value_or(L"[ERROR]");
+                open_document(doc_path, 0.0f, mark->offset_y);
+            }
+        },
+        [&](MarkInDatabase* mark) {
+            db_manager->delete_mark_with_uuid(utf8_encode(mark->uuid));
+        }
+    );
+    show_current_widget();
+}
+
 void MainWidget::handle_goto_bookmark() {
     std::vector<std::wstring> option_names;
     std::vector<std::wstring> option_location_strings;
@@ -5885,6 +5960,7 @@ std::wstring MainWidget::handle_add_highlight(char symbol) {
     if (main_document_view->selected_character_rects.size() > 0) {
         std::string uuid = main_document_view->add_highlight(selection_begin, selection_end, symbol);
         clear_selected_text();
+        selected_highlight_index = doc()->get_highlight_index_with_uuid(uuid);
         return utf8_decode(uuid);
     }
     else {
@@ -6530,7 +6606,7 @@ bool MainWidget::event(QEvent* event) {
     }
 
     //if (event->type() == QEvent::TabletEVe)
-    if (TOUCH_MODE) {
+    if (TOUCH_MODE || event->type() == QEvent::Gesture) {
 
         if (event->type() == QEvent::TouchUpdate) {
             // when performing pinch to zoom, Qt only fires PinchGesture event when
@@ -6546,7 +6622,7 @@ bool MainWidget::event(QEvent* event) {
         if (event->type() == QEvent::Gesture) {
             auto gesture = (static_cast<QGestureEvent*>(event));
 
-            if (gesture->gesture(Qt::TapAndHoldGesture)) {
+            if (TOUCH_MODE && gesture->gesture(Qt::TapAndHoldGesture)) {
                 velocity_x = 0;
                 velocity_y = 0;
 
@@ -6658,14 +6734,16 @@ bool MainWidget::event(QEvent* event) {
                 }
             }
             if (gesture->gesture(Qt::PinchGesture)) {
-                pdf_renderer->no_rerender = true;
                 QPinchGesture* pinch = static_cast<QPinchGesture*>(gesture->gesture(Qt::PinchGesture));
                 if (pinch->state() == Qt::GestureStarted) {
                     is_pinching = true;
+                    pdf_renderer->no_rerender = true;
                 }
                 if ((pinch->state() == Qt::GestureFinished) || (pinch->state() == Qt::GestureCanceled)) {
                     is_pinching = false;
                     is_dragging = false;
+                    pdf_renderer->no_rerender = false;
+                    invalidate_render();
                 }
                 float scale = pinch->scaleFactor();
 
@@ -6677,8 +6755,11 @@ bool MainWidget::event(QEvent* event) {
                         opengl_widget->zoom_overview(scale);
                     }
                     else{
-                        dv()->set_zoom_level(dv()->get_zoom_level() * scale, true);
+                        QPoint cursor = mapFromGlobal(QCursor::pos());
+                        WindowPos cursor_pos = {cursor.x(), cursor.y()};
+                        dv()->zoom_in_cursor(cursor_pos, scale);
                     }
+                    validate_render();
                 }
                 return true;
             }
@@ -7307,6 +7388,7 @@ void MainWidget::unselect_last_char(){
 }
 
 void MainWidget::handle_debug_command() {
+    select_word_under_cursor();
 }
 
 void MainWidget::export_command_names(std::wstring file_path){
@@ -9601,6 +9683,7 @@ QJsonObject MainWidget::get_json_state() {
         result["window_width"] = width();
         result["window_height"] = height();
         result["ruler_index"] = dv()->get_line_index();
+        result["ruler_active"] = dv()->is_ruler_mode();
 
         std::vector<std::wstring> loaded_document_paths = document_manager->get_loaded_document_paths();
         QJsonArray loaded_documents;
@@ -11132,6 +11215,21 @@ bool MainWidget::handle_annotation_move_finish(){
     return false;
 }
 
+std::optional<FixedVelocityState> MainWidget::get_continuous_fixed_velocity_state() const {
+    if (!is_velocity_fixed || smooth_y_move_amount.has_value()) {
+        return {};
+    }
+
+    return FixedVelocityState{
+        velocity_y,
+        velocity_x,
+    };
+}
+
+void MainWidget::restore_fixed_velocity_state(const FixedVelocityState& fixed_velocity_state) {
+    set_fixed_velocity(fixed_velocity_state.velocity_y, fixed_velocity_state.velocity_x);
+}
+
 void MainWidget::set_fixed_velocity(float vel_y, float vel_x, std::optional<float> y_move_amount) {
     velocity_y = vel_y;
     velocity_x = vel_x;
@@ -11303,7 +11401,7 @@ QMenuBar* MainWidget::create_main_menu_bar(){
     };
 
     MenuNode* navigate_menu = new MenuNode{
-        "Naviagte",
+        "Navigate",
         "",
         {
             new MenuNode{ "goto_page_with_page_number", "", {} },
@@ -11762,4 +11860,14 @@ QString MainWidget::get_environment_variable(QString name) {
 void MainWidget::repeat_last_command() {
     std::unique_ptr<Command> last_cmd = command_manager->get_command_with_name(this, last_performed_command_name);
     handle_command_types(std::move(last_cmd), last_performed_command_num_repeats);
+}
+
+void MainWidget::select_word_under_cursor() {
+    AbsoluteDocumentPos mouse_abspos = get_mouse_abspos();
+
+    main_document_view->get_text_selection(mouse_abspos,
+        mouse_abspos,
+        true,
+        main_document_view->selected_character_rects,
+        selected_text);
 }
