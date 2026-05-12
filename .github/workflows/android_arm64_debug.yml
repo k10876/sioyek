@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - dev
+      - *
     paths:
       - '.github/workflows/android_arm64_debug.yml'
       - 'android/**'
