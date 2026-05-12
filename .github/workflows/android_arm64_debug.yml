@@ -3,8 +3,6 @@ name: Android ARM64 Debug APK
 on:
   workflow_dispatch:
   push:
-    branches:
-      - *
     paths:
       - '.github/workflows/android_arm64_debug.yml'
       - 'android/**'
