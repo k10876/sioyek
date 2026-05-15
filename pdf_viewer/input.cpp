@@ -8006,16 +8006,18 @@ std::unordered_map<std::string, std::vector<std::string>> InputHandler::get_comm
     return res;
 }
 
-void InputHandler::get_commands_with_current_prefix_helper(InputParseTreeNode* node, std::unordered_map<std::string, std::vector<std::string>>& map) const {
+void InputHandler::get_commands_with_current_prefix_helper(InputParseTreeNode* node, std::vector<InputParseTreeNode*> prefix, std::unordered_map<std::string, std::vector<std::string>>& map) const {
     for (size_t i = 0; i < node->children.size(); i++) {
+        prefix.push_back(node->children[i]);
         if (node->children[i]->is_final){
             for (const auto& name : node->children[i]->name_){
-                map[name].push_back(get_key_string_from_tree_node_sequence({node->children[i]}));
+                map[name].push_back(get_key_string_from_tree_node_sequence(prefix));
             }
         }
         else {
-            get_commands_with_current_prefix_helper(node->children[i], map);
+            get_commands_with_current_prefix_helper(node->children[i], prefix, map);
         }
+        prefix.pop_back();
     }
 
 }
@@ -8023,7 +8025,8 @@ void InputHandler::get_commands_with_current_prefix_helper(InputParseTreeNode* n
 std::unordered_map<std::string, std::vector<std::string>> InputHandler::get_commands_with_current_prefix() const {
 
     std::unordered_map<std::string, std::vector<std::string>> res;
-    get_commands_with_current_prefix_helper(current_node, res);
+    std::vector<InputParseTreeNode*> prefix;
+    get_commands_with_current_prefix_helper(current_node, prefix, res);
     return res;
 }
 

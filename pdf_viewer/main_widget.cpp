@@ -214,6 +214,7 @@ extern bool USE_CUSTOM_COLOR_FOR_DARK_SYSTEM_THEME;
 extern bool ALLOW_MAIN_VIEW_SCROLL_WHILE_IN_OVERVIEW;
 extern bool SAME_WIDTH;
 extern bool KEYBOARD_SELECT_INCLUSIVE;
+extern bool SHOW_COMMAND_HINTS;
 
 extern bool SIMPLIFY_FREEHAND_DRAWINGS;
 extern bool SHOW_RIGHT_CLICK_CONTEXT_MENU;
@@ -502,6 +503,8 @@ void MainWidget::resizeEvent(QResizeEvent* resize_event) {
             status_label->show();
         }
     }
+
+    update_command_hints_position();
 
     if ((main_document_view->get_document() != nullptr) && (main_document_view->get_zoom_level() == 0)) {
         main_document_view->fit_to_page_width();
@@ -949,12 +952,20 @@ MainWidget::MainWidget(fz_context* mupdf_context,
 
     text_command_line_edit_label = new QLabel(this);
     text_command_line_edit = new MyLineEdit(this);
+    command_hints_label = new QLabel(this);
 
     text_command_line_edit_label->setFont(label_font);
     text_command_line_edit->setFont(label_font);
+    command_hints_label->setFont(label_font);
 
     text_command_line_edit_label->setStyleSheet(get_status_stylesheet());
     text_command_line_edit->setStyleSheet(get_status_stylesheet());
+    command_hints_label->setStyleSheet(get_status_stylesheet());
+    command_hints_label->setWordWrap(true);
+    command_hints_label->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    command_hints_label->setMargin(8);
+    command_hints_label->setAttribute(Qt::WA_TransparentForMouseEvents);
+    command_hints_label->hide();
 
     text_command_line_edit_container_layout->addWidget(text_command_line_edit_label);
     text_command_line_edit_container_layout->addWidget(text_command_line_edit);
@@ -1618,6 +1629,7 @@ void MainWidget::handle_escape() {
     }
 
     smooth_y_move_amount = {};
+    hide_command_hints();
     clear_selection_indicators();
     typing_location = {};
     if (pending_command_instance) {
@@ -1849,6 +1861,7 @@ void MainWidget::validate_render() {
 void MainWidget::validate_ui() {
     status_label_left->setText(QString::fromStdWString(get_status_string(false)));
     status_label_right->setText(QString::fromStdWString(get_status_string(true)));
+    update_command_hints_position();
     is_ui_invalidated = false;
 }
 
@@ -1875,11 +1888,14 @@ void MainWidget::on_config_file_changed(ConfigManager* new_config) {
 
     text_command_line_edit_label->setStyleSheet(get_status_stylesheet());
     text_command_line_edit->setStyleSheet(get_status_stylesheet());
+    command_hints_label->setFont(QFont(get_status_font_face_name()));
+    command_hints_label->setStyleSheet(get_status_stylesheet());
     //status_label->setStyleSheet(get_status_stylesheet());
 
     int status_bar_height = get_status_bar_height();
     status_label->move(0, main_window_height - status_bar_height);
     status_label->resize(size().width(), status_bar_height);
+    update_command_hints_position();
 
     //text_command_line_edit_container->setStyleSheet("background-color: black; color: white; border: none;");
 }
@@ -2301,11 +2317,12 @@ void MainWidget::key_event(bool released, QKeyEvent* kevent, bool is_auto_repeat
             kevent->modifiers() & Qt::AltModifier,
             &num_repeats);
         
-        if (!input_handler->is_on_final_or_root_node()){
-            // auto commands_with_current_prefix = input_handler->get_commands_with_current_prefix();
-            // for (auto [name, command] : commands_with_current_prefix) {
-            //     qDebug() << name << " " << command;
-            // }
+        if (SHOW_COMMAND_HINTS && !input_handler->is_on_final_or_root_node()){
+            auto commands_with_current_prefix = input_handler->get_commands_with_current_prefix();
+            show_command_hints(commands_with_current_prefix);
+        }
+        else {
+            hide_command_hints();
         }
 
         if (commands) {
@@ -2323,6 +2340,81 @@ void MainWidget::key_event(bool released, QKeyEvent* kevent, bool is_auto_repeat
     }
 
 }
+
+void MainWidget::hide_command_hints() {
+    if (!command_hints_label) {
+        return;
+    }
+
+    command_hints_label->clear();
+    command_hints_label->hide();
+}
+
+void MainWidget::update_command_hints_position() {
+    if (!command_hints_label || !command_hints_label->isVisible()) {
+        return;
+    }
+
+    const int outer_margin = 12;
+    int available_width = std::max(main_window_width - (outer_margin * 2), 120);
+    int preferred_width = std::max(main_window_width / 3, 220);
+    command_hints_label->setMaximumWidth(std::min(available_width, preferred_width));
+    command_hints_label->adjustSize();
+
+    int bottom_offset = outer_margin;
+    if (status_label && status_label->isVisible()) {
+        bottom_offset += status_label->height();
+    }
+
+    int label_x = std::max(outer_margin, main_window_width - command_hints_label->width() - outer_margin);
+    int label_y = std::max(outer_margin, main_window_height - command_hints_label->height() - bottom_offset);
+    command_hints_label->move(label_x, label_y);
+    command_hints_label->raise();
+}
+
+void MainWidget::show_command_hints(std::unordered_map<std::string, std::vector<std::string>>& hints){
+    // when there are multiple commands with the current command prefix, we show the possible continuations
+    if (hints.empty()) {
+        hide_command_hints();
+        return;
+    }
+
+    std::vector<std::pair<QString, QStringList>> sorted_hints;
+    sorted_hints.reserve(hints.size());
+
+    for (const auto& [command_name, continuations] : hints) {
+        QStringList unique_continuations;
+        std::vector<std::string> sorted_continuations = continuations;
+        std::sort(sorted_continuations.begin(), sorted_continuations.end());
+        sorted_continuations.erase(std::unique(sorted_continuations.begin(), sorted_continuations.end()), sorted_continuations.end());
+
+        for (const std::string& continuation : sorted_continuations) {
+            unique_continuations.push_back(QString::fromStdString(continuation));
+        }
+
+        sorted_hints.push_back({ QString::fromStdString(command_name), unique_continuations });
+    }
+
+    std::sort(sorted_hints.begin(), sorted_hints.end(), [](const auto& lhs, const auto& rhs) {
+        return lhs.first < rhs.first;
+    });
+
+    QStringList lines;
+    for (const auto& [command_name, continuations] : sorted_hints) {
+        if (continuations.empty()) {
+            lines.push_back(command_name);
+        }
+        else {
+            lines.push_back(QString("%1: %2").arg(command_name, continuations.join(", ")));
+        }
+    }
+
+    command_hints_label->setText(lines.join("\n"));
+    command_hints_label->show();
+    update_command_hints_position();
+
+}
+
 
 void MainWidget::handle_right_click(WindowPos click_pos, bool down, bool is_shift_pressed, bool is_control_pressed, bool is_command_pressed, bool is_alt_pressed) {
 
@@ -10359,6 +10451,7 @@ DocumentView* MainWidget::helper_document_view(){
 void MainWidget::hide_command_line_edit(){
     text_command_line_edit->setText("");
     text_command_line_edit_container->hide();
+    hide_command_hints();
     text_suggestion_index = 0;
     pending_command_instance = {};
     setFocus();

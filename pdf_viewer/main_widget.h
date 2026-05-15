@@ -340,6 +340,7 @@ public:
     QWidget* text_command_line_edit_container = nullptr;
     QLabel* text_command_line_edit_label = nullptr;
     QLineEdit* text_command_line_edit = nullptr;
+    QLabel* command_hints_label = nullptr;
     QLabel* status_label_left = nullptr;
     QLabel* status_label_right = nullptr;
     QWidget* status_label = nullptr;
@@ -430,6 +431,10 @@ public:
     void handle_right_click(WindowPos click_pos, bool down, bool is_shift_pressed, bool is_control_pressed, bool is_command_pressed, bool is_alt_pressed);
     void on_config_changed(std::string config_name, bool should_save=false);
     void on_configs_changed(std::vector<std::string>* config_names);
+    QString get_command_hints_stylesheet() const;
+    void hide_command_hints();
+    void update_command_hints_position();
+    void show_command_hints(std::unordered_map<std::string, std::vector<std::string>>& hints);
 
     void next_state();
     void prev_state();
