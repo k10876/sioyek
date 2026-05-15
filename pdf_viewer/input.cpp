@@ -2588,6 +2588,18 @@ public:
     bool requires_document() { return false; }
 };
 
+class ShowPortalWindowCommand : public Command {
+public:
+    static inline const std::string cname = "show_portal_window";
+    static inline const std::string hname = "Show the portal window (always show in two window configuration, regardless of the current configuration)";
+    ShowPortalWindowCommand(MainWidget* w) : Command(cname, w) {};
+    void perform() {
+        widget->show_portal_window();
+    }
+
+    bool requires_document() { return false; }
+};
+
 class NextStateCommand : public Command {
 public:
     static inline const std::string cname = "next_state";
@@ -7193,6 +7205,7 @@ CommandManager::CommandManager(ConfigManager* config_manager) {
     register_command<SetFreehandType>();
     register_command<SetFreehandAlphaCommand>();
     register_command<ToggleWindowConfigurationCommand>();
+    register_command<ShowPortalWindowCommand>();
     register_command<PrefsUserAllCommand>();
     register_command<KeysUserAllCommand>();
     register_command<FitToPageWidthRatioCommand>();

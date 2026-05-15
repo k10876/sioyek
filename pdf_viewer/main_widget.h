@@ -449,6 +449,7 @@ public:
     void show_mark_selector();
     void toggle_two_window_mode();
     void toggle_window_configuration();
+    void show_portal_window();
     void handle_portal();
     void start_creating_rect_portal(AbsoluteDocumentPos location);
     void add_portal(std::wstring source_path, Portal new_link);

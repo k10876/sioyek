@@ -3538,6 +3538,22 @@ void MainWidget::toggle_window_configuration() {
     }
 }
 
+void MainWidget::show_portal_window() {
+
+    QWidget* helper_window = get_top_level_widget(helper_opengl_widget());
+    QWidget* main_window = get_top_level_widget(opengl_widget);
+
+    if (!is_helper_visible()) {
+        apply_window_params_for_two_window_mode();
+        if (helper_window_overlaps_main_window()) {
+            helper_window->activateWindow();
+        }
+        else {
+            main_window->activateWindow();
+        }
+    }
+}
+
 void MainWidget::toggle_two_window_mode() {
 
     //main_widget.resize(window_width, window_height);
