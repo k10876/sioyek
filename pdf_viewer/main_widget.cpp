@@ -2300,6 +2300,13 @@ void MainWidget::key_event(bool released, QKeyEvent* kevent, bool is_auto_repeat
             is_meta_pressed,
             kevent->modifiers() & Qt::AltModifier,
             &num_repeats);
+        
+        if (!input_handler->is_on_final_or_root_node()){
+            // auto commands_with_current_prefix = input_handler->get_commands_with_current_prefix();
+            // for (auto [name, command] : commands_with_current_prefix) {
+            //     qDebug() << name << " " << command;
+            // }
+        }
 
         if (commands) {
             if (last_performed_command && last_performed_command->is_holdable() && commands->get_name() == last_performed_command->get_name()) {

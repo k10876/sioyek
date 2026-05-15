@@ -160,6 +160,7 @@ private:
     std::string get_key_name_from_key_code(int key_code) const;
 
     void add_command_key_mappings(InputParseTreeNode* root, std::unordered_map<std::string, std::vector<std::string>>& map, std::vector<InputParseTreeNode*> prefix) const;
+    void get_commands_with_current_prefix_helper(InputParseTreeNode* node, std::unordered_map<std::string, std::vector<std::string>>& map) const;
 public:
     //char create_link_sumbol = 0;
     //char create_bookmark_symbol = 0;
@@ -175,6 +176,8 @@ public:
     std::optional<Path> get_or_create_user_keys_path();
     std::vector<Path> get_all_user_keys_paths();
     std::unordered_map<std::string, std::vector<std::string>> get_command_key_mappings() const;
+    std::unordered_map<std::string, std::vector<std::string>> get_commands_with_current_prefix() const;
+    bool is_on_final_or_root_node() const;
 
 };
 
