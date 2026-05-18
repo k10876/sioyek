@@ -1,6 +1,9 @@
 name: Test Build Android APK
 
 on:
+  push:
+    branches:
+      - worktree-android-workflow-test
   workflow_dispatch:
 
 jobs:
