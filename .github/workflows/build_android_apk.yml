@@ -1,16 +1,16 @@
-name: Android Emulator APK Smoke Test
+name: Build Android APK
 
 on:
   workflow_dispatch:
 
 jobs:
-  run-apk:
+  run-build:
     runs-on: macos-14
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Locate APK folder
+      - name: Locate build APK folder
         id: apk
         run: |
           apk_dir="$(find build_apk -mindepth 1 -maxdepth 1 -type d | sort | tail -n 1)"
