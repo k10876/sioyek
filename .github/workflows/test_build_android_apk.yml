@@ -5,6 +5,7 @@ on:
     branches:
       - worktree-android-workflow-test
       - test-android-build
+      - development
   workflow_dispatch:
 
 jobs:
