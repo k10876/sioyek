@@ -2,6 +2,17 @@
 
 Sioyek is a PDF viewer with a focus on textbooks and research papers.
 
+# Development Branch FAQ
+
+## Q: There are build errors with Qt 5.*.
+
+A: If you are building the development branch you need to use Qt 6.7 or 6.8.
+
+## Q: On MacOS I get "sioyek is damaged and cannot be opened. It is recommended to eject the image.".
+
+A: This is related to macOS quarantine. See https://github.com/ahrm/sioyek/discussions/1156#discussioncomment-10822738 .
+
+
 ## Contents
 * [Installation](#install)
 * [Documentation](#documentation)
@@ -14,7 +25,7 @@ Sioyek is a PDF viewer with a focus on textbooks and research papers.
 ### Official packages
 There are installers for Windows, macOS and Linux. See [Releases page](https://github.com/ahrm/sioyek/releases).
 
-### Homebrew Cask
+### Homebew Cask
 There is a homebrew cask available here: https://formulae.brew.sh/cask/sioyek. Install by running:
 ```
 brew install --cask sioyek
@@ -27,14 +38,13 @@ Distro | Link | Maintainer
 Flathub | [sioyek](https://flathub.org/apps/details/com.github.ahrm.sioyek) | [@nbenitez](https://flathub.org/apps/details/com.github.ahrm.sioyek)
 Alpine | [sioyek](https://pkgs.alpinelinux.org/packages?name=sioyek) | [@jirutka](https://github.com/jirutka)
 Arch | [AUR sioyek](https://aur.archlinux.org/packages/sioyek) | [@goggle](https://github.com/goggle)
-Arch | [AUR sioyek-git](https://aur.archlinux.org/packages/sioyek-git/) | [@hrdl-github](https://github.com/hrdl-github)
+Arch | [AUR Sioyek-git](https://aur.archlinux.org/packages/sioyek-git/) | [@randomn4me](https://github.com/randomn4me)
 Arch | [AUR sioyek-appimage](https://aur.archlinux.org/packages/sioyek-appimage/) | [@DhruvaSambrani](https://github.com/DhruvaSambrani)
 Debian | [sioyek](https://packages.debian.org/sioyek) | [@viccie30](https://github.com/viccie30)
 NixOS | [sioyek](https://search.nixos.org/packages?channel=unstable&show=sioyek&from=0&size=50&sort=relevance&type=packages&query=sioyek) | [@podocarp](https://github.com/podocarp)
 openSUSE | [Publishing](https://build.opensuse.org/package/show/Publishing/sioyek) | [@uncomfyhalomacro](https://github.com/uncomfyhalomacro)
 openSUSE | [Factory](https://build.opensuse.org/package/show/openSUSE:Factory/sioyek) | [@uncomfyhalomacro](https://github.com/uncomfyhalomacro)
 Ubuntu | [sioyek](https://packages.ubuntu.com/sioyek) | [@viccie30](https://github.com/viccie30)
-Guix | [sioyek](https://hpc.guix.info/package/sioyek) | [@guix-community](https://codeberg.org/org/guix/members)
 
 
 ## Documentation
@@ -120,8 +130,8 @@ You can customize all key bindings and some UI elements by editing `keys_user.co
 Run the following commands to install dependencies, clone the repository and compile sioyek on Fedora (tested on Fedora Workstation 36).
 
 ```
-sudo dnf install qt5-qtbase-devel qt5-qtbase-static qt5-qt3d-devel harfbuzz-devel mesa-libGL-devel glfw-devel
-git clone --recursive https://github.com/ahrm/sioyek
+sudo dnf install qt5-qtbase-devel qt5-qtbase-static qt5-qt3d-devel harfbuzz-devel
+git clone --recursive --branch development https://github.com/ahrm/sioyek
 cd sioyek
 ./build_linux.sh
 ``` 
@@ -136,7 +146,7 @@ sudo apt install libharfbuzz-dev
 ```
 3. Clone the repository and build:
 ```
-git clone --recursive https://github.com/ahrm/sioyek
+git clone --recursive --branch development https://github.com/ahrm/sioyek
 cd sioyek
 ./build_linux.sh
 ```
@@ -146,33 +156,35 @@ cd sioyek
 2. Install Qt 5 and make sure qmake is in `PATH`.
 3. Clone the repository and build using 64 bit Visual Studio Developer Command Prompt:
 ```
-git clone --recursive https://github.com/ahrm/sioyek
+git clone --recursive --branch development https://github.com/ahrm/sioyek
 cd sioyek
 build_windows.bat
 ```
 
 ### Mac
-1. Install Xcode.
-2. Clone the repository and build: (The code below is in Zsh, which is the default shell on macOS.)
-```zsh
-(
-setopt PIPE_FAIL PRINT_EXIT_VALUE ERR_RETURN SOURCE_TRACE XTRACE
-
-git clone --recursive https://github.com/ahrm/sioyek
+1. Uninstall previous Qt6 installed by Homebrew
+2. Install Xcode.
+3. Install Qt6.
+```
+pip install aqtinstall
+cd /path/to/qt
+aqt install-qt mac desktop 6.8.2 clang_64 -m all
+export Qt6_DIR=/path/to/qt/6.8.2/macos/
+export QT_PLUGIN_PATH=/path/to/qt/6.8.2/macos/plugins
+export PKG_CONFIG_PATH=/path/to/qt/6.8.2/macos/lib/pkgconfig
+export QML2_IMPORT_PATH=/path/to/qt/6.8.2/macos/qml
+export PATH="/path/to/qt/6.8.2/macos/bin:$PATH"
+```
+4. Clone the repository, build and install:
+```
+git clone --recursive --branch development https://github.com/ahrm/sioyek
 cd sioyek
 chmod +x build_mac.sh
-
-brew install 'qt@5' freeglut mesa harfbuzz
-
-export PATH="/opt/homebrew/opt/qt@5/bin:$PATH"
-#: The above is needed to make =qmake= from =qt= be found.
-#: Find the path using =brew info 'qt@5'=.
-
+setopt PIPE_FAIL PRINT_EXIT_VALUE ERR_RETURN SOURCE_TRACE XTRACE
 MAKE_PARALLEL=8 ./build_mac.sh
 
 mv build/sioyek.app /Applications/
 sudo codesign --force --sign - --deep /Applications/sioyek.app
-)
 ```
 
 ## Donation

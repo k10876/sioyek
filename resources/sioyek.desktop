@@ -10,3 +10,4 @@ Type=Application
 Icon=sioyek-icon-linux
 Categories=Development;Viewer;
 MimeType=application/pdf;
+StartupWMClass=sioyek
