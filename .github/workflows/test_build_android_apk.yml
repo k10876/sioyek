@@ -1,14 +1,20 @@
-name: Build Android APK
+name: Test Build Android APK
 
 on:
   workflow_dispatch:
 
 jobs:
   run-build:
-    runs-on: macos-14
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Enable KVM group perms
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
 
       - name: Locate build APK folder
         id: apk
