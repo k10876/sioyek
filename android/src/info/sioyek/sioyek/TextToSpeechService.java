@@ -7,17 +7,11 @@ import android.os.Looper;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 
-import android.app.NotificationManager;
-import android.app.NotificationChannel;
-import androidx.core.app.NotificationCompat;
-import android.content.Context;
-
 import androidx.annotation.Nullable;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.Player;
 import androidx.media3.common.SimpleBasePlayer;
-import androidx.media3.exoplayer.source.SilenceMediaSource;
 import androidx.media3.session.MediaSession;
 import androidx.media3.session.MediaSessionService;
 import androidx.media3.session.SessionCommand;
@@ -74,7 +68,6 @@ class CustomPlayer extends SimpleBasePlayer{
 public class TextToSpeechService extends MediaSessionService {
 
     private MediaSession mediaSession = null;
-    private SilenceMediaSource mediaSource = null;
 
     private TextToSpeech tts;
     private boolean ttsInitialized = false;

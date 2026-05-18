@@ -42,26 +42,12 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
 
-import androidx.appcompat.app.AppCompatActivity;
-
-import android.os.Handler;
-import android.os.Looper;
-import android.util.Log;
-import android.view.View;
-
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.media3.session.MediaController;
 import androidx.media3.session.SessionToken;
-import androidx.navigation.NavController;
-import androidx.navigation.Navigation;
-import androidx.navigation.ui.AppBarConfiguration;
-import androidx.navigation.ui.NavigationUI;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
-
-import android.view.Menu;
-import android.view.MenuItem;
 
 
 
