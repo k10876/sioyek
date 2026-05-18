@@ -29,8 +29,15 @@ jobs:
           profile: pixel_4
           emulator-options: -no-snapshot -noaudio -no-boot-anim
           script: |
+            set -euo pipefail
             apk_dir='${{ steps.apk.outputs.apk_dir }}'
+            adb logcat -c
             for apk in "$apk_dir"/*.apk; do
+              echo "Installing $apk"
               adb install -r "$apk"
             done
+            echo "Launching info.sioyek.sioyek"
             adb shell monkey -p info.sioyek.sioyek -c android.intent.category.LAUNCHER 1
+            sleep 10
+            echo "Recent logcat output"
+            adb logcat -d -v time | tail -n 300
