@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - worktree-android-workflow-test
-      - test-android-build
+      - dev-android-build
       - development
   workflow_dispatch:
 
