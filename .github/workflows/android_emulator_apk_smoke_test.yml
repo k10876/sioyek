@@ -1,0 +1,36 @@
+name: Android Emulator APK Smoke Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-apk:
+    runs-on: macos-14
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Locate APK folder
+        id: apk
+        run: |
+          apk_dir="$(find build_apk -mindepth 1 -maxdepth 1 -type d | sort | tail -n 1)"
+          if [ -z "$apk_dir" ]; then
+            echo "No build_apk subdirectory found" >&2
+            exit 1
+          fi
+          echo "apk_dir=$apk_dir" >> "$GITHUB_OUTPUT"
+          find "$apk_dir" -maxdepth 1 -name '*.apk' | sort
+
+      - uses: ReactiveCircus/android-emulator-runner@v2.37.0
+        with:
+          api-level: 30
+          target: google_apis
+          arch: arm64-v8a
+          profile: pixel_4
+          emulator-options: -no-snapshot -noaudio -no-boot-anim
+          script: |
+            apk_dir='${{ steps.apk.outputs.apk_dir }}'
+            for apk in "$apk_dir"/*.apk; do
+              adb install -r "$apk"
+            done
+            adb shell monkey -p org.qtproject.example -c android.intent.category.LAUNCHER 1
