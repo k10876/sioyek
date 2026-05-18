@@ -33,4 +33,4 @@ jobs:
             for apk in "$apk_dir"/*.apk; do
               adb install -r "$apk"
             done
-            adb shell monkey -p org.qtproject.example -c android.intent.category.LAUNCHER 1
+            adb shell monkey -p info.sioyek.sioyek -c android.intent.category.LAUNCHER 1
