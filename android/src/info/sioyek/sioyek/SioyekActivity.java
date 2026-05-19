@@ -12,13 +12,9 @@ import android.provider.MediaStore;
 import android.provider.DocumentsContract;
 import android.content.*;
 import android.app.*;
-import android.view.KeyEvent;
-import android.view.SurfaceView;
-import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
-import android.net.Uri;
 import android.provider.OpenableColumns;
 
 import java.io.FileOutputStream;
@@ -170,23 +166,15 @@ public class SioyekActivity extends QtActivity{
         startService(intent);
 
         super.onResume();
-        focusQtContentView();
+        focusQtContentView(0);
     }
 
     @Override
     public void onWindowFocusChanged(boolean hasFocus){
         super.onWindowFocusChanged(hasFocus);
-        Log.i("SioyekActivity", "onWindowFocusChanged hasFocus=" + hasFocus);
         if (hasFocus){
-            focusQtContentView();
+            focusQtContentView(0);
         }
-    }
-
-    @Override
-    public boolean dispatchKeyEvent(KeyEvent event){
-        View focusedView = getCurrentFocus();
-        Log.i("SioyekActivity", "dispatchKeyEvent action=" + event.getAction() + " keyCode=" + event.getKeyCode() + " focusedView=" + (focusedView == null ? "null" : focusedView.getClass().getName()));
-        return super.dispatchKeyEvent(event);
     }
 
     @Override
@@ -211,6 +199,71 @@ public class SioyekActivity extends QtActivity{
         else{
             isIntentPending = true;
         }
+    }
+
+    private void focusQtContentView(int retryCount){
+        View contentRoot = findViewById(android.R.id.content);
+        if (contentRoot == null){
+            return;
+        }
+
+        View target = findBestQtFocusTarget(contentRoot);
+        if (target == null){
+            if (retryCount < 5){
+                contentRoot.postDelayed(() -> focusQtContentView(retryCount + 1), 100);
+            }
+            return;
+        }
+
+        requestFocusForTarget(target);
+        View finalTarget = target;
+        target.post(() -> requestFocusForTarget(finalTarget));
+    }
+
+    private void requestFocusForTarget(View target){
+        target.setFocusable(true);
+        target.setFocusableInTouchMode(true);
+        target.requestFocus();
+    }
+
+    private View findBestQtFocusTarget(View view){
+        if (isQtWindow(view)){
+            return view;
+        }
+
+        if (view instanceof ViewGroup){
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++){
+                View child = findBestQtFocusTarget(group.getChildAt(i));
+                if (child != null){
+                    return child;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private boolean isQtWindow(View view){
+        return view != null && view.getClass().getName().equals("org.qtproject.qt.android.QtWindow");
+    }
+
+    private View findFocusableLeaf(View view){
+        if (view instanceof ViewGroup){
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++){
+                View child = findFocusableLeaf(group.getChildAt(i));
+                if (child != null){
+                    return child;
+                }
+            }
+        }
+
+        if (view.isFocusable() || view.isFocusableInTouchMode()){
+            return view;
+        }
+
+        return null;
     }
 
     public void checkPendingIntents(String workingDir){

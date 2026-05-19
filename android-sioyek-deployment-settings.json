@@ -6,9 +6,9 @@
    "qtLibsDirectory": "lib",
    "qtPluginsDirectory": "plugins",
    "qtQmlDirectory": "qml",
-   "sdk": "/home/k10876/sioyek-build/android-sdk",
+   "sdk": "/home/k10876/Android/Sdk",
    "sdkBuildToolsRevision": "34.0.0",
-   "ndk": "/home/k10876/sioyek-build/android-sdk/ndk/26.1.10909125",
+   "ndk": "/home/k10876/Android/Sdk/ndk/26.1.10909125",
    "toolchain-prefix": "llvm",
    "tool-prefix": "llvm",
    "ndk-host": "linux-x86_64",
@@ -20,7 +20,7 @@
    "rcc-binary": "/home/k10876/sioyek-build/Qt/6.7.3/gcc_64/libexec/rcc",
    "qml-importscanner-binary": "/home/k10876/sioyek-build/Qt/6.7.3/gcc_64/libexec/qmlimportscanner",
    "qml-root-path": "/home/k10876/sioyek-build",
-   "stdcpp-path": "/home/k10876/sioyek-build/android-sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib",
+   "stdcpp-path": "/home/k10876/Android/Sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib",
    "qrcFiles": "/home/k10876/sioyek-build/resources.qrc",
    "application-binary": "sioyek"
 }
