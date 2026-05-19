@@ -906,7 +906,6 @@ MainWidget::MainWidget(fz_context* mupdf_context,
 
     central_widget = new QWidget(this);
     central_widget->setMouseTracking(true);
-    central_widget->setFocusPolicy(Qt::NoFocus);
 
     inverse_search_command = INVERSE_SEARCH_COMMAND;
     pdf_renderer = new PdfRenderer(4, should_quit_ptr, mupdf_context);
@@ -919,7 +918,6 @@ MainWidget::MainWidget(fz_context* mupdf_context,
 
     main_document_view = new DocumentView(db_manager, document_manager, checksummer);
     opengl_widget = new PdfViewOpenGLWidget(main_document_view, pdf_renderer, config_manager, false, this);
-    opengl_widget->setFocusPolicy(Qt::NoFocus);
 
     QFont label_font = QFont(get_status_font_face_name());
     label_font.setStyleHint(QFont::TypeWriter);
@@ -1348,7 +1346,6 @@ MainWidget::MainWidget(fz_context* mupdf_context,
     set_color_mode_to_system_theme();
 #endif
 
-    setFocusPolicy(Qt::StrongFocus);
     setFocus();
 }
 
@@ -5079,11 +5076,7 @@ void MainWidget::focusInEvent(QFocusEvent* ev) {
             << "thisFocused=" << hasFocus()
             << "focusWidget=" << (focusWidget() ? focusWidget()->metaObject()->className() : "null")
             << "openglFocused=" << (opengl_widget ? opengl_widget->hasFocus() : false);
-#ifdef SIOYEK_ANDROID
     QQuickWidget::focusInEvent(ev);
-#else
-    QWidget::focusInEvent(ev);
-#endif
 }
 
 void MainWidget::toggle_statusbar() {
@@ -6783,11 +6776,7 @@ bool MainWidget::event(QEvent* event) {
                 }
 
                 if ((mapFromGlobal(QCursor::pos()) - last_press_point).manhattanLength() > 10) {
-#ifdef SIOYEK_ANDROID
-                    return QQuickWidget::event(event);
-#else
                     return QWidget::event(event);
-#endif
                 }
 
                 // only show menu when there are no other widgets
@@ -6920,20 +6909,12 @@ bool MainWidget::event(QEvent* event) {
                 return true;
             }
 
-#ifdef SIOYEK_ANDROID
-            return QQuickWidget::event(event);
-#else
             return QWidget::event(event);
-#endif
 
         }
     }
 
-#ifdef SIOYEK_ANDROID
-    return QQuickWidget::event(event);
-#else
     return QWidget::event(event);
-#endif
 }
 
 void MainWidget::handle_mobile_selection() {
