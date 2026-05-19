@@ -906,6 +906,7 @@ MainWidget::MainWidget(fz_context* mupdf_context,
 
     central_widget = new QWidget(this);
     central_widget->setMouseTracking(true);
+    central_widget->setFocusPolicy(Qt::NoFocus);
 
     inverse_search_command = INVERSE_SEARCH_COMMAND;
     pdf_renderer = new PdfRenderer(4, should_quit_ptr, mupdf_context);
@@ -918,6 +919,7 @@ MainWidget::MainWidget(fz_context* mupdf_context,
 
     main_document_view = new DocumentView(db_manager, document_manager, checksummer);
     opengl_widget = new PdfViewOpenGLWidget(main_document_view, pdf_renderer, config_manager, false, this);
+    opengl_widget->setFocusPolicy(Qt::NoFocus);
 
     QFont label_font = QFont(get_status_font_face_name());
     label_font.setStyleHint(QFont::TypeWriter);
@@ -1346,6 +1348,7 @@ MainWidget::MainWidget(fz_context* mupdf_context,
     set_color_mode_to_system_theme();
 #endif
 
+    setFocusPolicy(Qt::StrongFocus);
     setFocus();
 }
 
@@ -1693,6 +1696,12 @@ void MainWidget::handle_escape() {
 }
 
 void MainWidget::keyPressEvent(QKeyEvent* kevent) {
+    qInfo() << "MainWidget::keyPressEvent"
+            << "key=" << kevent->key()
+            << "text=" << kevent->text()
+            << "autoRepeat=" << kevent->isAutoRepeat()
+            << "focusWidget=" << (focusWidget() ? focusWidget()->metaObject()->className() : "null")
+            << "openglFocused=" << (opengl_widget ? opengl_widget->hasFocus() : false);
     if (TOUCH_MODE) {
         if (kevent->key() == Qt::Key_Back) {
             if (current_widget_stack.size() > 0) {
@@ -1707,6 +1716,12 @@ void MainWidget::keyPressEvent(QKeyEvent* kevent) {
 }
 
 void MainWidget::keyReleaseEvent(QKeyEvent* kevent) {
+    qInfo() << "MainWidget::keyReleaseEvent"
+            << "key=" << kevent->key()
+            << "text=" << kevent->text()
+            << "autoRepeat=" << kevent->isAutoRepeat()
+            << "focusWidget=" << (focusWidget() ? focusWidget()->metaObject()->className() : "null")
+            << "openglFocused=" << (opengl_widget ? opengl_widget->hasFocus() : false);
     key_event(true, kevent, kevent->isAutoRepeat());
 }
 
@@ -5060,6 +5075,15 @@ void MainWidget::focusInEvent(QFocusEvent* ev) {
     if (index > 0) {
         std::swap(windows[0], windows[index]);
     }
+    qInfo() << "MainWidget::focusInEvent"
+            << "thisFocused=" << hasFocus()
+            << "focusWidget=" << (focusWidget() ? focusWidget()->metaObject()->className() : "null")
+            << "openglFocused=" << (opengl_widget ? opengl_widget->hasFocus() : false);
+#ifdef SIOYEK_ANDROID
+    QQuickWidget::focusInEvent(ev);
+#else
+    QWidget::focusInEvent(ev);
+#endif
 }
 
 void MainWidget::toggle_statusbar() {
@@ -6700,6 +6724,17 @@ bool MainWidget::event(QEvent* event) {
 
     QTabletEvent* te = dynamic_cast<QTabletEvent*>(event);
     QKeyEvent* ke = dynamic_cast<QKeyEvent*>(event);
+#ifdef SIOYEK_ANDROID
+    if (ke && ((ke->type() == QEvent::KeyPress) || (ke->type() == QEvent::KeyRelease))) {
+        qInfo() << "MainWidget::event"
+                << "type=" << event->type()
+                << "key=" << ke->key()
+                << "text=" << ke->text()
+                << "accepted=" << event->isAccepted()
+                << "focusWidget=" << (focusWidget() ? focusWidget()->metaObject()->className() : "null")
+                << "hasFocus=" << hasFocus();
+    }
+#endif
     if (ke && (ke->type() == QEvent::KeyPress)) {
         // Apparently Qt doesn't send keyPressEvent for tab and backtab anymore, so we have to
         // manually handle them here.
@@ -6748,7 +6783,11 @@ bool MainWidget::event(QEvent* event) {
                 }
 
                 if ((mapFromGlobal(QCursor::pos()) - last_press_point).manhattanLength() > 10) {
+#ifdef SIOYEK_ANDROID
+                    return QQuickWidget::event(event);
+#else
                     return QWidget::event(event);
+#endif
                 }
 
                 // only show menu when there are no other widgets
@@ -6881,12 +6920,20 @@ bool MainWidget::event(QEvent* event) {
                 return true;
             }
 
+#ifdef SIOYEK_ANDROID
+            return QQuickWidget::event(event);
+#else
             return QWidget::event(event);
+#endif
 
         }
     }
 
+#ifdef SIOYEK_ANDROID
+    return QQuickWidget::event(event);
+#else
     return QWidget::event(event);
+#endif
 }
 
 void MainWidget::handle_mobile_selection() {

@@ -12,6 +12,11 @@ import android.provider.MediaStore;
 import android.provider.DocumentsContract;
 import android.content.*;
 import android.app.*;
+import android.view.KeyEvent;
+import android.view.SurfaceView;
+import android.view.TextureView;
+import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.net.Uri;
 import android.provider.OpenableColumns;
@@ -165,6 +170,23 @@ public class SioyekActivity extends QtActivity{
         startService(intent);
 
         super.onResume();
+        focusQtContentView();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus){
+        super.onWindowFocusChanged(hasFocus);
+        Log.i("SioyekActivity", "onWindowFocusChanged hasFocus=" + hasFocus);
+        if (hasFocus){
+            focusQtContentView();
+        }
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event){
+        View focusedView = getCurrentFocus();
+        Log.i("SioyekActivity", "dispatchKeyEvent action=" + event.getAction() + " keyCode=" + event.getKeyCode() + " focusedView=" + (focusedView == null ? "null" : focusedView.getClass().getName()));
+        return super.dispatchKeyEvent(event);
     }
 
     @Override
