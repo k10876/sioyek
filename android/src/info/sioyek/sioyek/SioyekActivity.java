@@ -13,7 +13,6 @@ import android.provider.DocumentsContract;
 import android.content.*;
 import android.app.*;
 import android.view.WindowManager;
-import android.widget.Toast;
 import android.net.Uri;
 import android.provider.OpenableColumns;
 
@@ -128,21 +127,6 @@ public class SioyekActivity extends QtActivity{
         }
 
         instance = this;
-        if(!Environment.isExternalStorageManager()){
-
-            // Uri uri = Uri.parse("package:" + BuildConfig.APPLICATION_ID);
-            Uri uri = Uri.parse("package:" + "info.sioyek.sioyek");
-            try {
-                Intent newActivityIntent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, uri);
-
-                startActivity(
-                    newActivityIntent
-                );
-            }
-            catch(Exception e){
-            }
-        }
-
     }
 
     @Override
