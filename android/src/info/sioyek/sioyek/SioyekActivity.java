@@ -131,7 +131,7 @@ public class SioyekActivity extends QtActivity{
         if(!Environment.isExternalStorageManager()){
 
             // Uri uri = Uri.parse("package:" + BuildConfig.APPLICATION_ID);
-            Uri uri = Uri.parse("package:" + "org.qtproject.example");
+            Uri uri = Uri.parse("package:" + "info.sioyek.sioyek");
             try {
                 Intent newActivityIntent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, uri);
 

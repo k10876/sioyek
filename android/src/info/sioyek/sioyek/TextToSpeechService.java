@@ -6,6 +6,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
+import android.util.Log;
 
 import androidx.annotation.Nullable;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
@@ -65,7 +66,49 @@ class CustomPlayer extends SimpleBasePlayer{
 
     }
 }
+
 public class TextToSpeechService extends MediaSessionService {
+
+    private final class TtsProgressListener extends UtteranceProgressListener {
+        @Override
+        public void onStart(String utteranceId) {
+            publishTtsState("Speaking");
+        }
+
+        @Override
+        public void onDone(String utteranceId) {
+            publishTtsState("Ready");
+
+            if (restIndex < restOfDocument.size()) {
+                tts.speak(restOfDocument.get(restIndex), TextToSpeech.QUEUE_FLUSH, null, "hi");
+                pauseLocation = 0;
+                tempPauseLocation = 0;
+                restIndex++;
+            }
+        }
+
+        @Override
+        public void onRangeStart(String utteranceId, int start, int end, int frame) {
+            tempPauseLocation = start;
+            sendMessage(pauseLocation + start, pauseLocation + end);
+        }
+
+        @Override
+        public void onError(String utteranceId) {
+            publishTtsState("Error");
+        }
+    }
+
+    private final class TtsInitListener implements TextToSpeech.OnInitListener {
+        @Override
+        public void onInit(int status) {
+            if (status == TextToSpeech.SUCCESS) {
+                MAX_SPEECH_SIZE = tts.getMaxSpeechInputLength();
+                ttsInitialized = true;
+                tts.setOnUtteranceProgressListener(new TtsProgressListener());
+            }
+        }
+    }
 
     private MediaSession mediaSession = null;
 
@@ -129,57 +172,19 @@ public class TextToSpeechService extends MediaSessionService {
                 })
                 .build();
 
-        tts = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
-            @Override
-            public void onInit(int status) {
-                if (status == TextToSpeech.SUCCESS) {
-                    MAX_SPEECH_SIZE = tts.getMaxSpeechInputLength();
-                    ttsInitialized = true;
-                    tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
-                        @Override
-                        public void onStart(String s) {
-                            publishTtsState("Speaking");
-                        }
-
-                        @Override
-                        public void onDone(String s) {
-                            publishTtsState("Ready");
-
-                            if (restIndex < restOfDocument.size()){
-                                tts.speak(restOfDocument.get(restIndex), TextToSpeech.QUEUE_FLUSH, null, "hi");
-                                pauseLocation = 0;
-                                tempPauseLocation = 0;
-                                restIndex++;
-                            }
-                            // if (restOfDocument.length() > 0){
-                            //     tts.speak(restOfDocument, TextToSpeech.QUEUE_FLUSH, null, "hi");
-                            //     restOfDocument = "";
-                            // }
-                        }
-
-                        @Override
-                        public void onRangeStart(String utteranceId, int start, int end, int frame){
-                            tempPauseLocation = start;
-                            sendMessage(pauseLocation + start, pauseLocation + end);
-                        }
-
-                        @Override
-                        public void onError(String s) {
-                            publishTtsState("Error");
-                        }
-                    });
-                }
-            }
-        });
+        tts = new TextToSpeech(this, new TtsInitListener());
     }
 
 
     @Override
     public int onStartCommand (Intent intent, int flags, int startId) {
+        if (intent == null) {
+            return START_NOT_STICKY;
+        }
 
-
-        if (intent.getStringExtra("text") != null){
-            spokenText = intent.getStringExtra("text");
+        String text = intent.getStringExtra("text");
+        if (text != null){
+            spokenText = text;
             pauseLocation = 0;
             tempPauseLocation = 0;
         }
@@ -194,7 +199,9 @@ public class TextToSpeechService extends MediaSessionService {
         }
         if (intent.hasExtra("rest")){
             String rest = intent.getStringExtra("rest");
-            setRestText(rest);
+            if (rest != null) {
+                setRestText(rest);
+            }
         }
         return super.onStartCommand(intent, flags, startId);
     }
@@ -280,7 +287,18 @@ public class TextToSpeechService extends MediaSessionService {
         tempPauseLocation = 0;
         restOfDocument.clear();
         restIndex = 0;
-        SioyekActivity.onResumeState(isPlaying, isOnRest, offset);
+
+        if (!SioyekActivity.isInitialized) {
+            Log.w("TextToSpeechService", "Skipping resume-state callback before activity initialization");
+            return;
+        }
+
+        try {
+            SioyekActivity.onResumeState(isPlaying, isOnRest, offset);
+        }
+        catch (UnsatisfiedLinkError e) {
+            Log.w("TextToSpeechService", "Skipping resume-state callback because native library is unavailable", e);
+        }
     }
 
 }
