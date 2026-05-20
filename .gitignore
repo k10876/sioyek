@@ -5,6 +5,9 @@
 /android-build/
 /android-openssl/
 
+# Claude
+.antigravitycli/
+
 # Android local/generated artifacts
 /android/.gradle/
 /android/build/
@@ -12,6 +15,8 @@
 /android/gradlew
 /android/gradlew.bat
 /android/gradle/wrapper/
+/build_apk/coexist/
+/build_apk/coexist-work/
 /libsioyek_*.so
 /--gradle
 

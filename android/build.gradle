@@ -16,6 +16,9 @@ repositories {
 
 apply plugin: 'com.android.application'
 
+def sioyekApplicationId = (project.findProperty('sioyekApplicationId') ?: 'info.sioyek.sioyek').toString()
+def sioyekNamespace = 'info.sioyek.sioyek'
+
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])
     implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.1.0'
@@ -25,6 +28,7 @@ dependencies {
 }
 
 android {
+    namespace sioyekNamespace
     /*******************************************************
      * The following variables:
      * - androidBuildToolsVersion,
@@ -77,6 +81,7 @@ android {
     }
 
     defaultConfig {
+        applicationId sioyekApplicationId
         resConfig "en"
         minSdkVersion qtMinSdkVersion
         targetSdkVersion qtTargetSdkVersion
