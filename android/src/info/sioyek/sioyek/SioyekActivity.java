@@ -58,11 +58,9 @@ public class SioyekActivity extends QtActivity{
     public static native String getRestOnPause();
     public static native void onResumeState(boolean isPlaying, boolean readingRest, int offset);
 
-    public static boolean isIntentPending;
+    private boolean intentPending;
     public static boolean isInitialized;
     public static boolean isPaused = true;
-
-    private static SioyekActivity instance = null;
 
     private MediaController mediaController = null;
     private SessionToken ttsSessionToken = null;
@@ -114,18 +112,17 @@ public class SioyekActivity extends QtActivity{
                         // viewIntent.setUri(intentUri);
                         viewIntent.setAction(Intent.ACTION_VIEW);
                         viewIntent.putExtra("sharedData", intentUri.toString());
+                        viewIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT);
 
                         startActivity(viewIntent);
-                        if (instance != null){
-                            finish();
-                        }
                     }
-                    isIntentPending = true;
+                    else {
+                        intentPending = true;
+                    }
                 }
             }
         }
 
-        instance = this;
     }
 
     @Override
@@ -186,14 +183,14 @@ public class SioyekActivity extends QtActivity{
             processIntent();
         }
         else{
-            isIntentPending = true;
+            intentPending = true;
         }
     }
 
     public void checkPendingIntents(String workingDir){
         isInitialized = true;
-        if (isIntentPending){
-            isIntentPending = false;
+        if (intentPending){
+            intentPending = false;
             processIntent();
         }
     }

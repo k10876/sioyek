@@ -2897,7 +2897,7 @@ void check_pending_intents(const QString workingDirPath)
 void setFileUrlReceived(const QString& url)
 {
     if (windows.size() > 0) {
-        windows[0]->open_document(url.toStdWString());
+        windows.back()->open_document(url.toStdWString());
     }
 }
 
