@@ -23,7 +23,7 @@ jobs:
       QT_VERSION: 6.7.3
       QT_HOST_ARCH: gcc_64
       QT_TARGET_ARCH: android_arm64_v8a
-      QT_ANDROID_MODULES: qt5compat qtdeclarative qtsvg qtshadertools
+      QT_ANDROID_MODULES:
       ANDROID_ABI: arm64-v8a
       ANDROID_PLATFORM: android-34
       ANDROID_BUILD_TOOLS: 34.0.0
@@ -69,7 +69,6 @@ jobs:
           host: linux
           target: android
           arch: ${{ env.QT_TARGET_ARCH }}
-          modules: ${{ env.QT_ANDROID_MODULES }}
           dir: ${{ runner.temp }}/qt
           cache: true
           setup-python: true
