@@ -9,6 +9,7 @@ from pathlib import Path
 
 DEFAULT_BASE_ID = "info.sioyek.sioyek"
 DEFAULT_SUFFIX_PREFIX = "coexist"
+MAX_COEXIST_VARIANTS = 12
 
 
 def parse_args():
@@ -61,6 +62,11 @@ def parse_args():
         "--staged-libs-dir",
         default="android-build/libs",
         help="Directory containing the already staged Android native libraries.",
+    )
+    parser.add_argument(
+        "--icon-set-dir",
+        default="android/coexist_icons",
+        help="Directory containing pre-generated icon sets for base and coexist variants.",
     )
     parser.add_argument(
         "--artifacts-dir",
@@ -119,6 +125,13 @@ def ensure_application_ids(args):
             raise ValueError(f"Duplicate application ID: {normalized}")
         seen.add(normalized)
         deduped.append(normalized)
+
+    coexist_count = sum(1 for app_id in deduped if app_id != args.base_id)
+    if coexist_count > MAX_COEXIST_VARIANTS:
+        raise ValueError(
+            f"At most {MAX_COEXIST_VARIANTS} coexist variants are supported, got {coexist_count}"
+        )
+
     return deduped
 
 
@@ -148,6 +161,18 @@ def seed_output_libs(staged_libs_dir: Path, output_dir: Path):
         raise FileNotFoundError(f"Staged libs dir not found: {staged_libs_dir}")
     destination = output_dir / "libs"
     shutil.copytree(staged_libs_dir, destination, dirs_exist_ok=True)
+
+
+def copy_icon_set(package_source_dir: Path, icon_set_dir: Path, icon_key: str):
+    source_root = icon_set_dir / icon_key
+    if not source_root.is_dir():
+        raise FileNotFoundError(f"Icon set not found: {source_root}")
+
+    for source_icon in source_root.glob("drawable-*/icon.png"):
+        destination = package_source_dir / "res" / source_icon.parent.name / "icon.png"
+        if not destination.parent.is_dir():
+            raise FileNotFoundError(f"Icon destination directory not found: {destination.parent}")
+        shutil.copy2(source_icon, destination)
 
 
 def write_deployment_settings(template: dict, package_source_dir: Path, destination: Path):
@@ -209,6 +234,7 @@ def main():
     deployment_settings_path = (repo_root / args.deployment_settings).resolve()
     androiddeployqt_path = Path(args.androiddeployqt).resolve()
     staged_libs_dir = (repo_root / args.staged_libs_dir).resolve()
+    icon_set_dir = (repo_root / args.icon_set_dir).resolve()
     artifacts_dir = (repo_root / args.artifacts_dir).resolve()
     work_dir = (repo_root / args.work_dir).resolve()
 
@@ -220,6 +246,8 @@ def main():
         raise FileNotFoundError(f"androiddeployqt not found: {androiddeployqt_path}")
     if not staged_libs_dir.is_dir():
         raise FileNotFoundError(f"Staged libs dir not found: {staged_libs_dir}")
+    if not icon_set_dir.is_dir():
+        raise FileNotFoundError(f"Icon set dir not found: {icon_set_dir}")
 
     application_ids = ensure_application_ids(args)
 
@@ -239,8 +267,16 @@ def main():
     if args.dry_run:
         return 0
 
+    coexist_index = 0
+
     for application_id in application_ids:
         name = variant_name(args.base_id, application_id)
+        if application_id == args.base_id:
+            icon_key = "base"
+        else:
+            coexist_index += 1
+            icon_key = f"{coexist_index:02d}"
+
         variant_root = work_dir / name
         package_source_dir = variant_root / "android"
         output_dir = variant_root / "android-build"
@@ -254,6 +290,7 @@ def main():
 
         update_gradle_properties(package_source_dir / "gradle.properties", application_id)
         ensure_gradle_wrapper_executable(package_source_dir)
+        copy_icon_set(package_source_dir, icon_set_dir, icon_key)
         seed_output_libs(staged_libs_dir, output_dir)
         write_deployment_settings(deployment_template, package_source_dir, deployment_json_path)
 
