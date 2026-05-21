@@ -7,6 +7,7 @@
 
 # Claude
 .antigravitycli/
+.claude/
 
 # Android local/generated artifacts
 /android/.gradle/
