@@ -3,6 +3,7 @@ name: Build Android APK
 on:
   push:
     branches:
+      - "*"
     tags:
       - "v*"
   workflow_dispatch:
