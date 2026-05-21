@@ -1,0 +1,142 @@
+'name': Android Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [development]
+  pull_request:
+    branches: [development]
+    paths:
+      - 'android/**'
+      - '.github/workflows/android.yml'
+      - 'pdf_viewer/**'
+      - 'pdf_viewer_build_config.pro'
+      - 'CMakeLists.txt'
+
+permissions:
+  contents: read
+
+env:
+  QT_VERSION: '6.7.2'
+  QT_ANDROID_ARCH: 'android_arm64_v8a'
+  ANDROID_API_LEVEL: '33'
+  ANDROID_NDK_VERSION: '23.1.7779620'
+  ANDROID_BUILD_TYPE: 'debug'
+
+jobs:
+  build-android:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        ref: development
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '17'
+
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+      with:
+        api-level: ${{ env.ANDROID_API_LEVEL }}
+        build-tools: '33.0.2'
+        ndk-version: ${{ env.ANDROID_NDK_VERSION }}
+
+    - name: Export Android environment variables
+      run: |
+        if [ -z "${ANDROID_HOME:-}" ]; then
+          echo "ANDROID_HOME is not set"
+          exit 1
+        fi
+        echo "ANDROID_SDK_ROOT=${ANDROID_HOME}" >> "$GITHUB_ENV"
+        echo "ANDROID_NDK_ROOT=${ANDROID_NDK_HOME:-${ANDROID_HOME}/ndk/${ANDROID_NDK_VERSION}}" >> "$GITHUB_ENV"
+
+    - name: Install Qt for Android
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: ${{ env.QT_VERSION }}
+        host: 'linux'
+        target: 'android'
+        arch: ${{ env.QT_ANDROID_ARCH }}
+        cache: true
+
+    - name: Build MuPDF and OpenSSL dependencies
+      run: |
+        set -euxo pipefail
+        PROJECT_ROOT=$PWD
+        mkdir -p libs
+        curl -L https://raw.githubusercontent.com/KDAB/android_openssl/32ebe304ff064a9affb699b2185af78e3494f49a/ssl_3/arm64-v8a/libssl_3.so -o libs/libssl_3.so
+        echo "33105ff4a18597f82fa9aa4904dc6d47b9c5552d91347ff049026d78d4ba7151  libs/libssl_3.so" | sha256sum -c -
+        curl -L https://raw.githubusercontent.com/KDAB/android_openssl/32ebe304ff064a9affb699b2185af78e3494f49a/ssl_3/arm64-v8a/libcrypto_3.so -o libs/libcrypto_3.so
+        echo "ea2d0dc330d24034e15ac9fb7194ee0719b172c502c97a54808f24840afd341f  libs/libcrypto_3.so" | sha256sum -c -
+        cd mupdf/platform/java
+        ./gradlew assembleRelease -PABI_FILTERS=arm64-v8a
+        cd "$PROJECT_ROOT"
+        MUPDF_LIB=$(find mupdf/platform/java -name "libmupdf_java.so" -path "*arm64-v8a*" | head -n 1)
+        if [ -z "$MUPDF_LIB" ]; then
+          echo "MuPDF android library not found"
+          exit 1
+        fi
+        cp "$MUPDF_LIB" libs/libmupdf_java.so
+
+    - name: Configure project with qmake
+      env:
+        ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+        ANDROID_NDK_ROOT: ${{ env.ANDROID_NDK_ROOT }}
+      run: |
+        set -euxo pipefail
+        QT_ANDROID="$HOME/Qt/${QT_VERSION}/${QT_ANDROID_ARCH}"
+        "$QT_ANDROID/bin/qmake" -spec android-clang \
+          "ANDROID_ABIS=arm64-v8a" \
+          "ANDROID_TARGET_ARCH=arm64-v8a" \
+          CONFIG+=release \
+          pdf_viewer_build_config.pro
+
+    - name: Build Android binaries
+      run: |
+        set -euxo pipefail
+        make -j"$(nproc)"
+
+    - name: Package APK
+      env:
+        ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+        ANDROID_NDK_ROOT: ${{ env.ANDROID_NDK_ROOT }}
+      run: |
+        set -euxo pipefail
+        DEPLOY_JSON="android-libsioyek.so-deployment-settings.json"
+        if [ ! -f "$DEPLOY_JSON" ]; then
+          DEPLOY_JSON=$(find . -name "android-libsioyek.so-deployment-settings.json" -print | sort | head -n 1 || true)
+        fi
+        if [ -z "$DEPLOY_JSON" ]; then
+          echo "Deployment settings file not found"
+          exit 1
+        fi
+        QT_ANDROID="$HOME/Qt/${QT_VERSION}/${QT_ANDROID_ARCH}"
+        "$QT_ANDROID/bin/androiddeployqt" \
+          --input "$DEPLOY_JSON" \
+          --output android-build \
+          --android-platform android-${ANDROID_API_LEVEL} \
+          --gradle \
+          $( [ "$ANDROID_BUILD_TYPE" = "debug" ] && echo "--debug" || echo "--release" )
+        DEFAULT_APK="android-build/build/outputs/apk/${ANDROID_BUILD_TYPE}/android-build-${ANDROID_BUILD_TYPE}.apk"
+        ALT_APK="android-build/build/outputs/apk/${ANDROID_BUILD_TYPE}/android-build-${ANDROID_BUILD_TYPE}-unsigned.apk"
+        ALT_SIGNED_APK="android-build/build/outputs/apk/${ANDROID_BUILD_TYPE}/android-build-${ANDROID_BUILD_TYPE}-signed.apk"
+        for candidate in "$DEFAULT_APK" "$ALT_SIGNED_APK" "$ALT_APK"; do
+          if [ -f "$candidate" ]; then
+            echo "APK_PATH=$candidate" >> "$GITHUB_ENV"
+            exit 0
+          fi
+        done
+        echo "Expected release APK not found in android-build/build/outputs/apk/release"
+        exit 1
+
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: sioyek-android-arm64-v8a
+        path: ${{ env.APK_PATH }}
