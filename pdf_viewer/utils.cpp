@@ -30,6 +30,7 @@
 #include <qnetworkrequest.h>
 #include <qnetworkreply.h>
 #include <qscreen.h>
+#include <qmetaobject.h>
 #include <qjsonarray.h>
 #include <quuid.h>
 #include <qjsondocument.h>
@@ -2926,6 +2927,17 @@ void on_android_resume_state(bool is_playing, bool is_on_rest, int offset){
     }
 }
 
+void on_android_window_metrics_changed(int width, int height){
+    for (auto window : windows) {
+        if (!window) {
+            continue;
+        }
+        QMetaObject::invokeMethod(window, [window, width, height]() {
+            window->handle_android_window_metrics_changed(width, height);
+        }, Qt::QueuedConnection);
+    }
+}
+
 QString on_android_get_rest_on_pause(){
     if (android_global_on_android_app_pause_callback){
         QString res = android_global_on_android_app_pause_callback.value()();
@@ -3001,6 +3013,17 @@ extern "C" {
 
         Q_UNUSED(obj)
         on_android_resume_state(is_playing, reading_rest, offset);
+    }
+
+    JNIEXPORT void JNICALL
+        Java_info_sioyek_sioyek_SioyekActivity_onWindowMetricsChanged(JNIEnv* env,
+            jobject obj,
+            jint width,
+            jint height)
+    {
+        Q_UNUSED(env)
+        Q_UNUSED(obj)
+        on_android_window_metrics_changed(static_cast<int>(width), static_cast<int>(height));
     }
 
     JNIEXPORT jstring JNICALL

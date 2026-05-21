@@ -476,14 +476,12 @@ public:
 };
 
 
-void MainWidget::resizeEvent(QResizeEvent* resize_event) {
-    QWidget::resizeEvent(resize_event);
-
-    main_window_width = size().width();
-    main_window_height = size().height();
+void MainWidget::apply_resize_state(const QSize& new_size, const QSize& old_size) {
+    main_window_width = new_size.width();
+    main_window_height = new_size.height();
 
     if (scratchpad) {
-        scratchpad->on_view_size_change(resize_event->size().width(), resize_event->size().height());
+        scratchpad->on_view_size_change(main_window_width, main_window_height);
         invalidate_render();
     }
     if (main_document_view->get_is_auto_resize_mode()) {
@@ -515,27 +513,66 @@ void MainWidget::resizeEvent(QResizeEvent* resize_event) {
 
     if ((current_widget_stack.size() > 0)) {
         for (auto w : current_widget_stack) {
-            QCoreApplication::postEvent(w, resize_event->clone());
+            QResizeEvent* resize_event = new QResizeEvent(new_size, old_size);
+            QCoreApplication::postEvent(w, resize_event);
         }
     }
 
     if (text_selection_buttons_) {
-        QCoreApplication::postEvent(get_text_selection_buttons(), resize_event->clone());
+        QCoreApplication::postEvent(get_text_selection_buttons(), new QResizeEvent(new_size, old_size));
     }
     if (search_buttons_) {
-        QCoreApplication::postEvent(get_search_buttons(), resize_event->clone());
+        QCoreApplication::postEvent(get_search_buttons(), new QResizeEvent(new_size, old_size));
     }
     if (highlight_buttons_) {
-        QCoreApplication::postEvent(get_highlight_buttons(), resize_event->clone());
+        QCoreApplication::postEvent(get_highlight_buttons(), new QResizeEvent(new_size, old_size));
     }
     if (draw_controls_) {
-        QCoreApplication::postEvent(get_draw_controls(), resize_event->clone());
+        QCoreApplication::postEvent(get_draw_controls(), new QResizeEvent(new_size, old_size));
     }
     if (RESIZE_COMMAND.size() > 0) {
         execute_macro_if_enabled(RESIZE_COMMAND);
     }
-
 }
+
+void MainWidget::resizeEvent(QResizeEvent* resize_event) {
+    QWidget::resizeEvent(resize_event);
+    apply_resize_state(resize_event->size(), resize_event->oldSize());
+}
+
+#ifdef SIOYEK_ANDROID
+void MainWidget::handle_android_window_metrics_changed(int width, int height) {
+    QSize current_size(width, height);
+    if (!current_size.isValid() || current_size.isEmpty()) {
+        current_size = size();
+    }
+    if (!current_size.isValid() || current_size.isEmpty()) {
+        return;
+    }
+
+    QSize old_size(main_window_width, main_window_height);
+    if (main_document_view) {
+        main_document_view->on_view_size_change(current_size.width(), current_size.height());
+    }
+
+    bool resize_event_handled = false;
+    if (size() != current_size) {
+        resize(current_size);
+        resize_event_handled = QSize(main_window_width, main_window_height) == current_size;
+    }
+    if (!resize_event_handled) {
+        apply_resize_state(current_size, old_size);
+    }
+
+    if (opengl_widget) {
+        opengl_widget->updateGeometry();
+        opengl_widget->update();
+    }
+
+    invalidate_render();
+    update();
+}
+#endif
 
 void MainWidget::set_overview_position(int page, float offset, std::optional<std::string> overview_type) {
     if (page >= 0) {

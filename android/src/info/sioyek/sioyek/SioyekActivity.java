@@ -11,8 +11,10 @@ import android.database.Cursor;
 import android.provider.MediaStore;
 import android.provider.DocumentsContract;
 import android.content.*;
+import android.content.res.Configuration;
 import android.app.*;
 import android.view.WindowManager;
+import android.view.View;
 import android.provider.OpenableColumns;
 
 import java.io.FileOutputStream;
@@ -57,6 +59,7 @@ public class SioyekActivity extends QtActivity{
     public static native void onExternalTtsStateChange(String newState);
     public static native String getRestOnPause();
     public static native void onResumeState(boolean isPlaying, boolean readingRest, int offset);
+    public static native void onWindowMetricsChanged(int width, int height);
 
     private boolean intentPending;
     public static boolean isInitialized;
@@ -64,6 +67,7 @@ public class SioyekActivity extends QtActivity{
 
     private MediaController mediaController = null;
     private SessionToken ttsSessionToken = null;
+    private boolean windowMetricsNotificationPending = false;
 
     private BroadcastReceiver messageReceiver = new BroadcastReceiver() {
         @Override
@@ -91,12 +95,55 @@ public class SioyekActivity extends QtActivity{
         }
     };
 
+    private void notifyWindowMetricsChanged(){
+        View decorView = getWindow().getDecorView();
+        if (decorView == null){
+            return;
+        }
+        if (windowMetricsNotificationPending){
+            return;
+        }
+        windowMetricsNotificationPending = true;
+
+        decorView.requestLayout();
+        decorView.invalidate();
+        decorView.post(() -> {
+            windowMetricsNotificationPending = false;
+            int postedWidth = decorView.getWidth();
+            int postedHeight = decorView.getHeight();
+            if (postedWidth <= 0 || postedHeight <= 0){
+                return;
+            }
+            QtNative.updateWindow();
+            try{
+                onWindowMetricsChanged(postedWidth, postedHeight);
+            }
+            catch(UnsatisfiedLinkError e){
+                Log.w("SioyekActivity", "native window metrics callback is not ready", e);
+            }
+        });
+    }
+
+    private void installWindowMetricsListener(){
+        View decorView = getWindow().getDecorView();
+        if (decorView == null){
+            return;
+        }
+
+        decorView.addOnLayoutChangeListener((view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+            if ((right - left != oldRight - oldLeft) || (bottom - top != oldBottom - oldTop)){
+                notifyWindowMetricsChanged();
+            }
+        });
+    }
+
     @Override
     public void onCreate(Bundle savedInstanceState){
         super.onCreate(savedInstanceState);
 
 
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        installWindowMetricsListener();
 
         Intent intent = getIntent();
 
@@ -161,6 +208,25 @@ public class SioyekActivity extends QtActivity{
         startService(intent);
 
         super.onResume();
+        notifyWindowMetricsChanged();
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig){
+        super.onConfigurationChanged(newConfig);
+        notifyWindowMetricsChanged();
+    }
+
+    @Override
+    public void onMultiWindowModeChanged(boolean isInMultiWindowMode){
+        super.onMultiWindowModeChanged(isInMultiWindowMode);
+        notifyWindowMetricsChanged();
+    }
+
+    @Override
+    public void onMultiWindowModeChanged(boolean isInMultiWindowMode, Configuration newConfig){
+        super.onMultiWindowModeChanged(isInMultiWindowMode, newConfig);
+        notifyWindowMetricsChanged();
     }
 
     @Override
