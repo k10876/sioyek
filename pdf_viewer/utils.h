@@ -496,9 +496,13 @@ public:
 };
 #endif
 
+
 #ifdef SIOYEK_ANDROID
 class AndroidTextToSpeechHandler : public TextToSpeechHandler {
 public:
+    // std::optional<std::function<void(int, int)>> word_callback = {};
+    // std::optional<std::function<void(QString)>> state_change_callback = {};
+
     AndroidTextToSpeechHandler();
 
     void say(QString text) override;

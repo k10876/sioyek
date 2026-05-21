@@ -11,9 +11,6 @@ INCLUDEPATH += ./pdf_viewer \
           
 
 QT += core opengl gui widgets network quickwidgets svg
-!android{
-    QT += texttospeech
-}
 
 greaterThan(QT_MAJOR_VERSION, 5){
 	QT += openglwidgets

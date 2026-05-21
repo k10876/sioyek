@@ -733,11 +733,7 @@ int main(int argc, char* args[]) {
     verify_config_paths();
 
 
-#ifdef SIOYEK_ANDROID
-    ConfigManager config_manager(android_config_path, auto_config_path, user_config_paths);
-#else
     ConfigManager config_manager(default_config_path, auto_config_path, user_config_paths);
-#endif
     CommandManager* command_manager = new CommandManager(&config_manager);
 
     if (PAPERS_FOLDER_PATH.size() > 0) {
