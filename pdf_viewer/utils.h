@@ -18,7 +18,9 @@
 #include <qstandarditemmodel.h>
 #include <qpoint.h>
 #include <qjsonarray.h>
+#ifndef SIOYEK_ANDROID
 #include <qtexttospeech.h>
+#endif
 
 #include <mupdf/fitz.h>
 
@@ -462,6 +464,7 @@ public:
     virtual void set_on_app_resume_callback(std::function<void(bool, bool, int)>) = 0;
 };
 
+#ifndef SIOYEK_ANDROID
 class QtTextToSpeechHandler : public TextToSpeechHandler {
 public:
     QTextToSpeech* tts;
@@ -491,14 +494,11 @@ public:
     virtual void set_on_app_pause_callback(std::function<QString()>);
     virtual void set_on_app_resume_callback(std::function<void(bool, bool, int)>);
 };
-
+#endif
 
 #ifdef SIOYEK_ANDROID
 class AndroidTextToSpeechHandler : public TextToSpeechHandler {
 public:
-    // std::optional<std::function<void(int, int)>> word_callback = {};
-    // std::optional<std::function<void(QString)>> state_change_callback = {};
-
     AndroidTextToSpeechHandler();
 
     void say(QString text) override;

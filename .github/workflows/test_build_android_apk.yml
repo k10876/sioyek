@@ -1,0 +1,153 @@
+name: Build Android APK
+
+on:
+  push:
+    branches:
+      - dev-android-build
+      - development
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build-android-apk:
+    runs-on: ubuntu-22.04
+    env:
+      QT_VERSION: 6.7.3
+      QT_HOST_ARCH: gcc_64
+      QT_TARGET_ARCH: android_arm64_v8a
+      QT_ANDROID_MODULES:
+      ANDROID_ABI: arm64-v8a
+      ANDROID_PLATFORM: android-34
+      ANDROID_BUILD_TOOLS: 34.0.0
+      ANDROID_NDK_VERSION: 26.1.10909125
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager \
+            "platforms;${ANDROID_PLATFORM}" \
+            "build-tools;${ANDROID_BUILD_TOOLS}" \
+            "ndk;${ANDROID_NDK_VERSION}"
+
+      - name: Install Qt host tools
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: linux
+          target: desktop
+          dir: ${{ runner.temp }}/qt
+          cache: true
+          setup-python: true
+
+      - name: Install Qt Android target
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: linux
+          target: android
+          arch: ${{ env.QT_TARGET_ARCH }}
+          dir: ${{ runner.temp }}/qt
+          cache: true
+          setup-python: true
+
+      - name: Resolve Qt and Android paths
+        run: |
+          echo "QT_ROOT=${RUNNER_TEMP}/qt/Qt/${QT_VERSION}" >> "$GITHUB_ENV"
+          echo "QT_HOST_DIR=${RUNNER_TEMP}/qt/Qt/${QT_VERSION}/${QT_HOST_ARCH}" >> "$GITHUB_ENV"
+          echo "QT_TARGET_DIR=${RUNNER_TEMP}/qt/Qt/${QT_VERSION}/${QT_TARGET_ARCH}" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-$ANDROID_HOME}" >> "$GITHUB_ENV"
+          echo "ANDROID_HOME=${ANDROID_SDK_ROOT:-$ANDROID_HOME}" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=${ANDROID_SDK_ROOT:-$ANDROID_HOME}/ndk/${ANDROID_NDK_VERSION}" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=${ANDROID_SDK_ROOT:-$ANDROID_HOME}/ndk/${ANDROID_NDK_VERSION}" >> "$GITHUB_ENV"
+
+      - name: Regenerate Android deployment settings
+        run: |
+          export PATH="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin:$QT_HOST_DIR/bin:$PATH"
+          "$QT_HOST_DIR/bin/qmake6" \
+            -o Makefile \
+            pdf_viewer_build_config.pro \
+            -qtconf "$QT_TARGET_DIR/bin/target_qt.conf" \
+            -spec android-clang \
+            CONFIG+=release \
+            ANDROID_ABIS="$ANDROID_ABI"
+
+      - name: Build native library
+        run: |
+          export PATH="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin:$QT_HOST_DIR/bin:$PATH"
+          make -j"$(nproc)"
+
+      - name: Stage rebuilt native library
+        run: |
+          mkdir -p "android-build/libs/${ANDROID_ABI}"
+          cp "libsioyek_${ANDROID_ABI}.so" "android-build/libs/${ANDROID_ABI}/libsioyek_${ANDROID_ABI}.so"
+
+      - name: Prepare Gradle Java home
+        run: |
+          python - <<PY
+          import os
+          from pathlib import Path
+          path = Path('android/gradle.properties')
+          java_home = os.environ['JAVA_HOME']
+          lines = path.read_text().splitlines()
+          updated = []
+          replaced = False
+          for line in lines:
+              if line.startswith('org.gradle.java.home='):
+                  updated.append('org.gradle.java.home=' + java_home)
+                  replaced = True
+              else:
+                  updated.append(line)
+          if not replaced:
+              updated.append('org.gradle.java.home=' + java_home)
+          path.write_text('\n'.join(updated) + '\n')
+          PY
+
+      - name: Package debug APK
+        run: |
+          chmod +x android/gradlew
+          "$QT_HOST_DIR/bin/androiddeployqt" \
+            --input android-sioyek-deployment-settings.json \
+            --output android-build \
+            --android-platform "$ANDROID_PLATFORM" \
+            --apk \
+            --gradle \
+            --debug
+
+      - name: Show APK output
+        run: find android-build/build/outputs -name '*.apk' -print
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sioyek-android-apk
+          path: android-build/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      - name: Publish APK to GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: android-build/build/outputs/apk/debug/*.apk

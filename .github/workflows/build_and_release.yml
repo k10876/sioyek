@@ -4,6 +4,8 @@ name: Build Release
 on:
   workflow_dispatch:
 
+  workflow_dispatch:
+
 jobs:
   upload-release:
     if: ${{ (github.event_name == 'workflow_dispatch') || (github.event_name != 'pull_request') }}

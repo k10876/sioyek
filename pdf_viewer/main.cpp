@@ -9,6 +9,8 @@
 
 #ifdef SIOYEK_ANDROID
 #include <QtCore/private/qandroidextras_p.h>
+extern std::wstring VOLUME_UP_COMMAND;
+extern std::wstring VOLUME_DOWN_COMMAND;
 #endif
 
 #include <QDebug>
@@ -49,6 +51,7 @@
 #include <qstandardpaths.h>
 #include <qcommandlineparser.h>
 #include <qdir.h>
+#include <QFile>
 #include <qsurfaceformat.h>
 
 #include <mupdf/fitz.h>
@@ -207,11 +210,24 @@ void configure_paths_android() {
     standard_data_path = standard_data_path.slash(L".local").slash(L"share").slash(L"Sioyek");
     standard_data_path.create_directories();
 
+    default_config_path = standard_data_path.slash(L"prefs.config");
+    default_keys_path = standard_data_path.slash(L"keys.config");
+
+    if (!default_config_path.file_exists()) {
+        QFile::copy(":/pdf_viewer/prefs.config", QString::fromStdWString(default_config_path.get_path()));
+    }
+
+    if (!default_keys_path.file_exists()) {
+        QFile::copy(":/pdf_viewer/keys.config", QString::fromStdWString(default_keys_path.get_path()));
+    }
+
     database_file_path = standard_data_path.slash(L"test.db");
     last_opened_file_address_path = standard_data_path.slash(L"last_document_path.txt");
     local_database_file_path = standard_data_path.slash(L"local.db");
     global_database_file_path = standard_data_path.slash(L"shared.db");
     android_config_path = standard_data_path.slash(L"saved.config");
+    user_config_paths.push_back(android_config_path);
+    user_keys_paths.push_back(standard_data_path.slash(L"keys_user.config"));
     tutorial_path = Path(L":/tutorial.pdf");
     downloaded_papers_path = standard_data_path.slash(L"downloads");
 }

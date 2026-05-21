@@ -61,7 +61,9 @@
 #include <qlocalsocket.h>
 #include <qbytearray.h>
 #include <qscrollbar.h>
+#ifndef SIOYEK_ANDROID
 #include <qtexttospeech.h>
+#endif
 #include <qwidget.h>
 #include <qjsengine.h>
 #include <qqmlengine.h>
@@ -534,6 +536,41 @@ void MainWidget::resizeEvent(QResizeEvent* resize_event) {
     }
 
 }
+
+#ifdef SIOYEK_ANDROID
+void MainWidget::handle_android_window_metrics_changed(int width, int height) {
+    QSize current_size(width, height);
+    if (!current_size.isValid() || current_size.isEmpty()) {
+        current_size = size();
+    }
+    if (!current_size.isValid() || current_size.isEmpty()) {
+        return;
+    }
+
+    QSize old_size(main_window_width, main_window_height);
+    if (main_document_view) {
+        main_document_view->on_view_size_change(current_size.width(), current_size.height());
+    }
+
+    bool resize_event_handled = false;
+    if (size() != current_size) {
+        resize(current_size);
+        resize_event_handled = QSize(main_window_width, main_window_height) == current_size;
+    }
+    if (!resize_event_handled) {
+        QResizeEvent resize_event(current_size, old_size);
+        resizeEvent(&resize_event);
+    }
+
+    if (opengl_widget) {
+        opengl_widget->updateGeometry();
+        opengl_widget->update();
+    }
+
+    invalidate_render();
+    update();
+}
+#endif
 
 void MainWidget::set_overview_position(int page, float offset, std::optional<std::string> overview_type) {
     if (page >= 0) {

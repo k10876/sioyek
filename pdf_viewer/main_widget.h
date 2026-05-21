@@ -14,6 +14,7 @@
 #include <qquickwidget.h>
 #include <qjsondocument.h>
 #include <qmainwindow.h>
+#include <qsize.h>
 
 #include "book.h"
 #include "input.h"
@@ -534,6 +535,9 @@ public:
 
     void invalidate_render();
     void invalidate_ui();
+#ifdef SIOYEK_ANDROID
+    void handle_android_window_metrics_changed(int width, int height);
+#endif
     void open_document(const Path& path, std::optional<float> offset_x = {}, std::optional<float> offset_y = {}, std::optional<float> zoom_level = {});
     void open_document(const std::wstring& path, std::optional<float> offset_x = {}, std::optional<float> offset_y = {}, std::optional<float> zoom_level = {});
     void open_document_with_hash(const std::string& hash, std::optional<float> offset_x = {}, std::optional<float> offset_y = {}, std::optional<float> zoom_level = {});
@@ -802,6 +806,7 @@ protected:
 
 
     void focusInEvent(QFocusEvent* ev);
+    void apply_resize_state(const QSize& new_size, const QSize& old_size);
     void resizeEvent(QResizeEvent* resize_event) override;
     void changeEvent(QEvent* event) override;
     void mouseMoveEvent(QMouseEvent* mouse_event) override;
@@ -820,7 +825,7 @@ protected:
     void mousePressEvent(QMouseEvent* mevent) override;
     void mouseDoubleClickEvent(QMouseEvent* mevent) override;
     void wheelEvent(QWheelEvent* wevent) override;
-    bool event(QEvent* event);
+    bool event(QEvent* event) override;
 
 public:
 
