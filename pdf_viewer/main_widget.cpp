@@ -476,12 +476,14 @@ public:
 };
 
 
-void MainWidget::apply_resize_state(const QSize& new_size, const QSize& old_size) {
-    main_window_width = new_size.width();
-    main_window_height = new_size.height();
+void MainWidget::resizeEvent(QResizeEvent* resize_event) {
+    QWidget::resizeEvent(resize_event);
+
+    main_window_width = size().width();
+    main_window_height = size().height();
 
     if (scratchpad) {
-        scratchpad->on_view_size_change(main_window_width, main_window_height);
+        scratchpad->on_view_size_change(resize_event->size().width(), resize_event->size().height());
         invalidate_render();
     }
     if (main_document_view->get_is_auto_resize_mode()) {
@@ -513,31 +515,26 @@ void MainWidget::apply_resize_state(const QSize& new_size, const QSize& old_size
 
     if ((current_widget_stack.size() > 0)) {
         for (auto w : current_widget_stack) {
-            QResizeEvent* resize_event = new QResizeEvent(new_size, old_size);
-            QCoreApplication::postEvent(w, resize_event);
+            QCoreApplication::postEvent(w, resize_event->clone());
         }
     }
 
     if (text_selection_buttons_) {
-        QCoreApplication::postEvent(get_text_selection_buttons(), new QResizeEvent(new_size, old_size));
+        QCoreApplication::postEvent(get_text_selection_buttons(), resize_event->clone());
     }
     if (search_buttons_) {
-        QCoreApplication::postEvent(get_search_buttons(), new QResizeEvent(new_size, old_size));
+        QCoreApplication::postEvent(get_search_buttons(), resize_event->clone());
     }
     if (highlight_buttons_) {
-        QCoreApplication::postEvent(get_highlight_buttons(), new QResizeEvent(new_size, old_size));
+        QCoreApplication::postEvent(get_highlight_buttons(), resize_event->clone());
     }
     if (draw_controls_) {
-        QCoreApplication::postEvent(get_draw_controls(), new QResizeEvent(new_size, old_size));
+        QCoreApplication::postEvent(get_draw_controls(), resize_event->clone());
     }
     if (RESIZE_COMMAND.size() > 0) {
         execute_macro_if_enabled(RESIZE_COMMAND);
     }
-}
 
-void MainWidget::resizeEvent(QResizeEvent* resize_event) {
-    QWidget::resizeEvent(resize_event);
-    apply_resize_state(resize_event->size(), resize_event->oldSize());
 }
 
 #ifdef SIOYEK_ANDROID
@@ -561,7 +558,8 @@ void MainWidget::handle_android_window_metrics_changed(int width, int height) {
         resize_event_handled = QSize(main_window_width, main_window_height) == current_size;
     }
     if (!resize_event_handled) {
-        apply_resize_state(current_size, old_size);
+        QResizeEvent resize_event(current_size, old_size);
+        resizeEvent(&resize_event);
     }
 
     if (opengl_widget) {
@@ -1730,12 +1728,6 @@ void MainWidget::handle_escape() {
 }
 
 void MainWidget::keyPressEvent(QKeyEvent* kevent) {
-    qInfo() << "MainWidget::keyPressEvent"
-            << "key=" << kevent->key()
-            << "text=" << kevent->text()
-            << "autoRepeat=" << kevent->isAutoRepeat()
-            << "focusWidget=" << (focusWidget() ? focusWidget()->metaObject()->className() : "null")
-            << "openglFocused=" << (opengl_widget ? opengl_widget->hasFocus() : false);
     if (TOUCH_MODE) {
         if (kevent->key() == Qt::Key_Back) {
             if (current_widget_stack.size() > 0) {
@@ -1750,12 +1742,6 @@ void MainWidget::keyPressEvent(QKeyEvent* kevent) {
 }
 
 void MainWidget::keyReleaseEvent(QKeyEvent* kevent) {
-    qInfo() << "MainWidget::keyReleaseEvent"
-            << "key=" << kevent->key()
-            << "text=" << kevent->text()
-            << "autoRepeat=" << kevent->isAutoRepeat()
-            << "focusWidget=" << (focusWidget() ? focusWidget()->metaObject()->className() : "null")
-            << "openglFocused=" << (opengl_widget ? opengl_widget->hasFocus() : false);
     key_event(true, kevent, kevent->isAutoRepeat());
 }
 
@@ -5109,11 +5095,6 @@ void MainWidget::focusInEvent(QFocusEvent* ev) {
     if (index > 0) {
         std::swap(windows[0], windows[index]);
     }
-    qInfo() << "MainWidget::focusInEvent"
-            << "thisFocused=" << hasFocus()
-            << "focusWidget=" << (focusWidget() ? focusWidget()->metaObject()->className() : "null")
-            << "openglFocused=" << (opengl_widget ? opengl_widget->hasFocus() : false);
-    QQuickWidget::focusInEvent(ev);
 }
 
 void MainWidget::toggle_statusbar() {
@@ -6754,17 +6735,6 @@ bool MainWidget::event(QEvent* event) {
 
     QTabletEvent* te = dynamic_cast<QTabletEvent*>(event);
     QKeyEvent* ke = dynamic_cast<QKeyEvent*>(event);
-#ifdef SIOYEK_ANDROID
-    if (ke && ((ke->type() == QEvent::KeyPress) || (ke->type() == QEvent::KeyRelease))) {
-        qInfo() << "MainWidget::event"
-                << "type=" << event->type()
-                << "key=" << ke->key()
-                << "text=" << ke->text()
-                << "accepted=" << event->isAccepted()
-                << "focusWidget=" << (focusWidget() ? focusWidget()->metaObject()->className() : "null")
-                << "hasFocus=" << hasFocus();
-    }
-#endif
     if (ke && (ke->type() == QEvent::KeyPress)) {
         // Apparently Qt doesn't send keyPressEvent for tab and backtab anymore, so we have to
         // manually handle them here.

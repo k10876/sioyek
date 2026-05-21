@@ -7805,15 +7805,15 @@ void get_keys_file_lines(const Path& file_path,
 InputParseTreeNode* parse_key_config_files(CommandManager* command_manager, const Path& default_path,
     const std::vector<Path>& user_paths) {
 
+    std::wifstream default_infile = open_wifstream(default_path.get_path());
+
     std::vector<std::wstring> command_strings;
     std::vector<std::wstring> command_keys;
     std::vector<std::wstring> command_files;
     std::vector<int> command_line_numbers;
 
-    LOG(std::wcout << L"InputHandler::parse_key_config_files default_path=" << default_path << L" exists=" << (default_path.file_exists() ? L"true" : L"false") << L"\n");
     get_keys_file_lines(default_path, command_strings, command_keys, command_files, command_line_numbers);
     for (auto upath : user_paths) {
-        LOG(std::wcout << L"InputHandler::parse_key_config_files user_path=" << upath << L" exists=" << (upath.file_exists() ? L"true" : L"false") << L"\n");
         get_keys_file_lines(upath, command_strings, command_keys, command_files, command_line_numbers);
     }
 
@@ -7827,8 +7827,6 @@ InputParseTreeNode* parse_key_config_files(CommandManager* command_manager, cons
         command_files.push_back(additional_keymap.file_name);
         command_line_numbers.push_back(additional_keymap.line_number);
     }
-
-    LOG(std::wcout << L"InputHandler::parse_key_config_files parsed_bindings=" << command_keys.size() << L" additional_keymaps=" << ADDITIONAL_KEYMAPS.size() << L"\n");
 
     return parse_lines(command_manager, command_keys, command_strings, command_files, command_line_numbers);
 }
@@ -7846,7 +7844,6 @@ void InputHandler::reload_config_files(const Path& default_config_path, const st
 
     root = parse_key_config_files(command_manager, default_config_path, user_config_paths);
     current_node = root;
-    LOG(std::wcout << L"InputHandler::reload_config_files root_children=" << (root ? root->children.size() : 0) << L" default_path=" << default_config_path << L" user_path_count=" << user_config_paths.size() << L"\n");
 }
 
 
