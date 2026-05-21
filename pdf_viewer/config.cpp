@@ -1165,6 +1165,10 @@ ConfigManager::ConfigManager(const Path& default_path, const Path& auto_path, co
     deserialize(nullptr, default_path, auto_path, user_paths);
 }
 
+#ifdef SIOYEK_ANDROID
+extern Path android_config_path;
+#endif
+
 void ConfigManager::persist_config() {
 #ifdef SIOYEK_ANDROID
     serialize(android_config_path);

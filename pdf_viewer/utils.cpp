@@ -30,6 +30,7 @@
 #include <qnetworkrequest.h>
 #include <qnetworkreply.h>
 #include <qscreen.h>
+#include <qmetaobject.h>
 #include <qjsonarray.h>
 #include <quuid.h>
 #include <qjsondocument.h>
@@ -2897,7 +2898,7 @@ void check_pending_intents(const QString workingDirPath)
 void setFileUrlReceived(const QString& url)
 {
     if (windows.size() > 0) {
-        windows[0]->open_document(url.toStdWString());
+        windows.back()->open_document(url.toStdWString());
     }
 }
 
@@ -2923,6 +2924,17 @@ void on_android_external_state_change(QString new_state){
 void on_android_resume_state(bool is_playing, bool is_on_rest, int offset){
     if (android_global_resume_state_callback){
         android_global_resume_state_callback.value()(is_playing, is_on_rest, offset);
+    }
+}
+
+void on_android_window_metrics_changed(int width, int height){
+    for (auto window : windows) {
+        if (!window) {
+            continue;
+        }
+        QMetaObject::invokeMethod(window, [window, width, height]() {
+            window->handle_android_window_metrics_changed(width, height);
+        }, Qt::QueuedConnection);
     }
 }
 
@@ -3001,6 +3013,17 @@ extern "C" {
 
         Q_UNUSED(obj)
         on_android_resume_state(is_playing, reading_rest, offset);
+    }
+
+    JNIEXPORT void JNICALL
+        Java_info_sioyek_sioyek_SioyekActivity_onWindowMetricsChanged(JNIEnv* env,
+            jobject obj,
+            jint width,
+            jint height)
+    {
+        Q_UNUSED(env)
+        Q_UNUSED(obj)
+        on_android_window_metrics_changed(static_cast<int>(width), static_cast<int>(height));
     }
 
     JNIEXPORT jstring JNICALL
@@ -4282,6 +4305,7 @@ QString get_status_font_face_name() {
 }
 
 
+#ifndef SIOYEK_ANDROID
 QtTextToSpeechHandler::QtTextToSpeechHandler() {
     tts = new QTextToSpeech();
 }
@@ -4348,6 +4372,7 @@ void QtTextToSpeechHandler::set_on_app_resume_callback(std::function<void(bool, 
 
 }
 
+#endif
 QString translate_key_mapping_to_macos(QString mapping){
 
     mapping = mapping.replace("D", "⌘");

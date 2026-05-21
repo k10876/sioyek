@@ -11,10 +11,10 @@ import android.database.Cursor;
 import android.provider.MediaStore;
 import android.provider.DocumentsContract;
 import android.content.*;
+import android.content.res.Configuration;
 import android.app.*;
 import android.view.WindowManager;
-import android.widget.Toast;
-import android.net.Uri;
+import android.view.View;
 import android.provider.OpenableColumns;
 
 import java.io.FileOutputStream;
@@ -42,26 +42,12 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
 
-import androidx.appcompat.app.AppCompatActivity;
-
-import android.os.Handler;
-import android.os.Looper;
-import android.util.Log;
-import android.view.View;
-
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.media3.session.MediaController;
 import androidx.media3.session.SessionToken;
-import androidx.navigation.NavController;
-import androidx.navigation.Navigation;
-import androidx.navigation.ui.AppBarConfiguration;
-import androidx.navigation.ui.NavigationUI;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
-
-import android.view.Menu;
-import android.view.MenuItem;
 
 
 
@@ -73,15 +59,15 @@ public class SioyekActivity extends QtActivity{
     public static native void onExternalTtsStateChange(String newState);
     public static native String getRestOnPause();
     public static native void onResumeState(boolean isPlaying, boolean readingRest, int offset);
+    public static native void onWindowMetricsChanged(int width, int height);
 
-    public static boolean isIntentPending;
+    private boolean intentPending;
     public static boolean isInitialized;
     public static boolean isPaused = true;
 
-    private static SioyekActivity instance = null;
-
     private MediaController mediaController = null;
     private SessionToken ttsSessionToken = null;
+    private boolean windowMetricsNotificationPending = false;
 
     private BroadcastReceiver messageReceiver = new BroadcastReceiver() {
         @Override
@@ -109,12 +95,55 @@ public class SioyekActivity extends QtActivity{
         }
     };
 
+    private void notifyWindowMetricsChanged(){
+        View decorView = getWindow().getDecorView();
+        if (decorView == null){
+            return;
+        }
+        if (windowMetricsNotificationPending){
+            return;
+        }
+        windowMetricsNotificationPending = true;
+
+        decorView.requestLayout();
+        decorView.invalidate();
+        decorView.post(() -> {
+            windowMetricsNotificationPending = false;
+            int postedWidth = decorView.getWidth();
+            int postedHeight = decorView.getHeight();
+            if (postedWidth <= 0 || postedHeight <= 0){
+                return;
+            }
+            QtNative.updateWindow();
+            try{
+                onWindowMetricsChanged(postedWidth, postedHeight);
+            }
+            catch(UnsatisfiedLinkError e){
+                Log.w("SioyekActivity", "native window metrics callback is not ready", e);
+            }
+        });
+    }
+
+    private void installWindowMetricsListener(){
+        View decorView = getWindow().getDecorView();
+        if (decorView == null){
+            return;
+        }
+
+        decorView.addOnLayoutChangeListener((view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+            if ((right - left != oldRight - oldLeft) || (bottom - top != oldBottom - oldTop)){
+                notifyWindowMetricsChanged();
+            }
+        });
+    }
+
     @Override
     public void onCreate(Bundle savedInstanceState){
         super.onCreate(savedInstanceState);
 
 
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        installWindowMetricsListener();
 
         Intent intent = getIntent();
 
@@ -130,30 +159,14 @@ public class SioyekActivity extends QtActivity{
                         // viewIntent.setUri(intentUri);
                         viewIntent.setAction(Intent.ACTION_VIEW);
                         viewIntent.putExtra("sharedData", intentUri.toString());
+                        viewIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT);
 
                         startActivity(viewIntent);
-                        if (instance != null){
-                            finish();
-                        }
                     }
-                    isIntentPending = true;
+                    else {
+                        intentPending = true;
+                    }
                 }
-            }
-        }
-
-        instance = this;
-        if(!Environment.isExternalStorageManager()){
-
-            // Uri uri = Uri.parse("package:" + BuildConfig.APPLICATION_ID);
-            Uri uri = Uri.parse("package:" + "org.qtproject.example");
-            try {
-                Intent newActivityIntent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, uri);
-
-                startActivity(
-                    newActivityIntent
-                );
-            }
-            catch(Exception e){
             }
         }
 
@@ -195,6 +208,25 @@ public class SioyekActivity extends QtActivity{
         startService(intent);
 
         super.onResume();
+        notifyWindowMetricsChanged();
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig){
+        super.onConfigurationChanged(newConfig);
+        notifyWindowMetricsChanged();
+    }
+
+    @Override
+    public void onMultiWindowModeChanged(boolean isInMultiWindowMode){
+        super.onMultiWindowModeChanged(isInMultiWindowMode);
+        notifyWindowMetricsChanged();
+    }
+
+    @Override
+    public void onMultiWindowModeChanged(boolean isInMultiWindowMode, Configuration newConfig){
+        super.onMultiWindowModeChanged(isInMultiWindowMode, newConfig);
+        notifyWindowMetricsChanged();
     }
 
     @Override
@@ -217,14 +249,14 @@ public class SioyekActivity extends QtActivity{
             processIntent();
         }
         else{
-            isIntentPending = true;
+            intentPending = true;
         }
     }
 
     public void checkPendingIntents(String workingDir){
         isInitialized = true;
-        if (isIntentPending){
-            isIntentPending = false;
+        if (intentPending){
+            intentPending = false;
             processIntent();
         }
     }

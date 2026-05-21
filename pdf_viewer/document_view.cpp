@@ -995,15 +995,12 @@ void DocumentView::fit_to_page_height_width_minimum(int statusbar_height) {
     int cp = get_center_page_number();
     if (cp == -1) return;
 
-    int page_width = current_document->get_page_width(cp);
     int page_height = current_document->get_page_height(cp);
-
-    float x_zoom_level = static_cast<float>(view_width) / page_width;
-    float y_zoom_level;
-    y_zoom_level = (static_cast<float>(view_height) - statusbar_height) / page_height;
+    float fit_to_height_zoom_level = (static_cast<float>(view_height) - statusbar_height) / page_height;
 
     set_offset_x(0);
-    set_zoom_level(std::min(x_zoom_level, y_zoom_level), true);
+    zoom_level = fit_to_height_zoom_level;
+    readjust_to_screen();
 
 }
 
