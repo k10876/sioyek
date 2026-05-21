@@ -20,7 +20,7 @@ jobs:
   build-android-apk:
     runs-on: ubuntu-22.04
     env:
-      QT_VERSION: 6.7.2
+      QT_VERSION: 6.7.3
       QT_HOST_ARCH: gcc_64
       QT_TARGET_ARCH: android_arm64_v8a
       QT_ANDROID_MODULES: qt5compat qtdeclarative qtsvg qtshadertools
@@ -58,7 +58,6 @@ jobs:
           version: ${{ env.QT_VERSION }}
           host: linux
           target: desktop
-          arch: ${{ env.QT_HOST_ARCH }}
           dir: ${{ runner.temp }}/qt
           cache: true
           setup-python: true
