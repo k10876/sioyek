@@ -205,7 +205,7 @@ jobs:
             -no-window \
             -no-audio \
             -no-boot-anim \
-            -gpu swiftshader_indirect \
+            -gpu guest \
             -no-snapshot \
             -memory 2048 &
           echo "Waiting for device..."
