@@ -10,7 +10,7 @@ INCLUDEPATH += ./pdf_viewer \
 }
           
 
-QT += core opengl gui widgets network quickwidgets svg
+QT += core opengl gui widgets network quickwidgets svg texttospeech
 
 greaterThan(QT_MAJOR_VERSION, 5){
 	QT += openglwidgets

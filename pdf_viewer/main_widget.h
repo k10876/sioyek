@@ -1002,7 +1002,8 @@ public:
     void handle_highlight_tags_pre_perform(const std::vector<int>& visible_highlight_indices);
     void handle_visible_bookmark_tags_pre_perform(const std::vector<int>& visible_bookmark_indices);
     void clear_keyboard_select_highlights();
-    void handle_goto_link_with_page_and_offset(int page, float y_offset);
+    void highlight_link_destination(int page, float y_offset, float x_offset);
+    void handle_goto_link_with_page_and_offset(int page, float y_offset, float x_offset);
     std::optional<std::wstring> get_search_suggestion_with_index(int index);
     bool is_menu_focused();
     void ensure_player_state_(QString state);

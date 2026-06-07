@@ -8,11 +8,17 @@ import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 import android.util.Log;
 
+import android.app.NotificationManager;
+import android.app.NotificationChannel;
+import androidx.core.app.NotificationCompat;
+import android.content.Context;
+
 import androidx.annotation.Nullable;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.Player;
 import androidx.media3.common.SimpleBasePlayer;
+import androidx.media3.exoplayer.source.SilenceMediaSource;
 import androidx.media3.session.MediaSession;
 import androidx.media3.session.MediaSessionService;
 import androidx.media3.session.SessionCommand;
@@ -119,7 +125,7 @@ public class TextToSpeechService extends MediaSessionService {
     private String spokenText = "";
     // private String restOfDocument = "";
     private ArrayList<String> restOfDocument = new ArrayList<String>();
-    private int restIndex = 0; 
+    private int restIndex = 0;
     boolean shouldHideNotification = false;
 
     private int MAX_SPEECH_SIZE = 4000;
@@ -146,7 +152,7 @@ public class TextToSpeechService extends MediaSessionService {
                     @Override
                     public int onPlayerCommandRequest(MediaSession session, MediaSession.ControllerInfo controller, int playerCommand) {
 
-                        boolean isFromSioyek = controller.getPackageName().equals(getApplicationContext().getPackageName()); 
+                        boolean isFromSioyek = controller.getPackageName().equals(getApplicationContext().getPackageName());
 
                         if (playerCommand == SimpleBasePlayer.COMMAND_PLAY_PAUSE){
 

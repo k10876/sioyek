@@ -506,7 +506,7 @@ std::vector<fz_stext_char*> reorder_stext_line(fz_stext_line* line) {
             });
     }
     else {
-        std::sort(reordered_chars.begin(), reordered_chars.end(), [](fz_stext_char* lhs, fz_stext_char* rhs) {
+        std::stable_sort(reordered_chars.begin(), reordered_chars.end(), [](fz_stext_char* lhs, fz_stext_char* rhs) {
             return (lhs->quad.lr.x <= rhs->quad.lr.x) && (lhs->quad.ll.x < rhs->quad.ll.x);
             });
     }
@@ -2898,7 +2898,7 @@ void check_pending_intents(const QString workingDirPath)
 void setFileUrlReceived(const QString& url)
 {
     if (windows.size() > 0) {
-        windows.back()->open_document(url.toStdWString());
+        windows[0]->open_document(url.toStdWString());
     }
 }
 

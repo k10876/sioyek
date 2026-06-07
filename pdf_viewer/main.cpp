@@ -221,6 +221,7 @@ void configure_paths_android() {
         QFile::copy(":/pdf_viewer/keys.config", QString::fromStdWString(default_keys_path.get_path()));
     }
 
+
     database_file_path = standard_data_path.slash(L"test.db");
     last_opened_file_address_path = standard_data_path.slash(L"last_document_path.txt");
     local_database_file_path = standard_data_path.slash(L"local.db");

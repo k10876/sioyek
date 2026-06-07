@@ -48,7 +48,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 
 
-
 public class SioyekActivity extends QtActivity{
     public static native void setFileUrlReceived(String url);
     public static native void qDebug(String msg);
@@ -61,6 +60,8 @@ public class SioyekActivity extends QtActivity{
     private boolean intentPending;
     public static boolean isInitialized;
     public static boolean isPaused = true;
+
+    private static SioyekActivity instance = null;
 
     private MediaController mediaController = null;
     private SessionToken ttsSessionToken = null;
@@ -87,7 +88,6 @@ public class SioyekActivity extends QtActivity{
         public void onReceive(Context context, Intent intent) {
             String state = intent.getStringExtra("state");
             onExternalTtsStateChange(state);
-            //onTtsStateChange(state);
         }
     };
 
@@ -106,20 +106,36 @@ public class SioyekActivity extends QtActivity{
                 Uri intentUri = intent.getData();
                 if (intentUri != null){
                     if (intentUri.toString().startsWith("content://") && (!intentUri.toString().startsWith("content://com.android")) && (!intentUri.toString().startsWith("content://media")) && (intentUri.toString().indexOf("@media") == -1)){
-                        //Toast.makeText(this, "Opening files from other apps is not supported. Download the file and open it from file manager.", Toast.LENGTH_LONG).show();
 
                         Intent viewIntent = new Intent(getApplicationContext(), SioyekActivity.class);
-                        // viewIntent.setUri(intentUri);
                         viewIntent.setAction(Intent.ACTION_VIEW);
                         viewIntent.putExtra("sharedData", intentUri.toString());
                         viewIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT);
 
                         startActivity(viewIntent);
+                        if (instance != null){
+                            finish();
+                        }
                     }
                     else {
                         intentPending = true;
                     }
                 }
+            }
+        }
+
+        instance = this;
+        if(!Environment.isExternalStorageManager()){
+
+            Uri uri = Uri.parse("package:" + "info.sioyek.sioyek");
+            try {
+                Intent newActivityIntent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, uri);
+
+                startActivity(
+                    newActivityIntent
+                );
+            }
+            catch(Exception e){
             }
         }
 
@@ -386,14 +402,10 @@ public class SioyekActivity extends QtActivity{
             if (intentUri == null){
                 intentUri = Uri.parse(intent.getStringExtra("sharedData"));
             }
-            //String realPath = getRealPathFromUri(getApplicationContext(), intentUri);
-            //Uri newUri = Uri.fromFile(new File(realPath));
 
-            //setFileUrlReceived(intentUri.toString());
             String realPath = "";
             try{
                 realPath = getRealPathFromUri(this, intentUri);
-                //Toast.makeText(this, "trying to open " + realPath, Toast.LENGTH_LONG).show();
                 setFileUrlReceived(realPath);
             }
             catch(IOException e){
@@ -411,7 +423,7 @@ public class SioyekActivity extends QtActivity{
             }
         });
 
-    } 
+    }
 
     public void ttsStop(){
         runOnUiThread(new Runnable() {
@@ -420,7 +432,7 @@ public class SioyekActivity extends QtActivity{
                 mediaController.stop();
             }
         });
-    } 
+    }
 
     public void ttsSetRate(float rate){
         runOnUiThread(new Runnable() {
@@ -429,7 +441,7 @@ public class SioyekActivity extends QtActivity{
                 setTtsRate(rate);
             }
         });
-    } 
+    }
 
     public void ttsSetRestOfDocument(String text){
         runOnUiThread(new Runnable() {
@@ -438,7 +450,7 @@ public class SioyekActivity extends QtActivity{
                 setTtsRestOfDocument(text);
             }
         });
-    } 
+    }
 
 
     public void ttsSay(String text){
