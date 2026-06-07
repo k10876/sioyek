@@ -248,9 +248,12 @@ jobs:
 
           if [ "$CRASHED" = true ]; then
             echo ""
-            echo "=== Crash trace (FATAL EXCEPTION) ==="
-            grep -A 50 "FATAL EXCEPTION" "$LOGCAT_FILE" || grep -A 50 "AndroidRuntime" "$LOGCAT_FILE" || echo "(no crash trace found in logcat)"
-            echo "======================================"
+            echo "=== Crash trace ==="
+            grep -A 50 "FATAL EXCEPTION" "$LOGCAT_FILE" \
+              || grep -A 30 "Fatal signal" "$LOGCAT_FILE" \
+              || grep -A 50 "AndroidRuntime" "$LOGCAT_FILE" \
+              || echo "(no crash trace found in logcat)"
+            echo "==================="
             echo ""
             echo "CRASHED=true" >> "$GITHUB_ENV"
           fi
