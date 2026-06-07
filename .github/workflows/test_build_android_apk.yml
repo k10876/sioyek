@@ -198,7 +198,9 @@ jobs:
 
       - name: Create AVD and boot emulator
         run: |
-          echo "no" | avdmanager create avd -n test_avd -k "system-images;android-${EMULATOR_API};google_apis;x86_64" --force
+          export ANDROID_AVD_HOME="$HOME/.android/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo "no" | avdmanager create avd -n test_avd -k "system-images;android-${EMULATOR_API};google_apis;x86_64" --force -p "$ANDROID_AVD_HOME/test_avd"
           "$ANDROID_HOME/emulator/emulator" -avd test_avd \
             -no-window \
             -no-audio \
