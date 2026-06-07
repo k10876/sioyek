@@ -200,12 +200,15 @@ jobs:
         run: |
           export ANDROID_AVD_HOME="$HOME/.android/avd"
           mkdir -p "$ANDROID_AVD_HOME"
+          mkdir -p "$HOME/.android"
+          echo "GLESDynamicVersion = on" >> "$HOME/.android/advancedFeatures.ini"
           echo "no" | avdmanager create avd -n test_avd -k "system-images;android-${EMULATOR_API};google_apis;x86_64" --force -p "$ANDROID_AVD_HOME/test_avd"
           "$ANDROID_HOME/emulator/emulator" -avd test_avd \
             -no-window \
             -no-audio \
             -no-boot-anim \
-            -gpu guest \
+            -gpu swangle \
+            -feature GLESDynamicVersion \
             -no-snapshot \
             -memory 2048 &
           echo "Waiting for device..."
@@ -215,6 +218,9 @@ jobs:
           echo "Waiting for package manager..."
           timeout 60 adb shell 'while ! pm list packages >/dev/null 2>&1; do sleep 2; done'
           echo "Emulator booted."
+          echo "OpenGL ES version:"
+          adb shell getprop ro.opengles.version || true
+          adb logcat -d | grep -Ei 'HostConnection|gles_max|EGL_emulation|eglCreateContext' | tail -10 || true
 
       - name: Install and launch app
         run: |
@@ -224,6 +230,7 @@ jobs:
           echo "Granting MANAGE_EXTERNAL_STORAGE..."
           adb shell appops set info.sioyek.sioyek MANAGE_EXTERNAL_STORAGE allow
           echo "Launching sioyek..."
+          adb shell setprop debug.egl.force_es_version 30
           adb shell am start -n info.sioyek.sioyek/.SioyekActivity
 
       - name: Crash detection (30s)
