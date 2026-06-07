@@ -230,7 +230,6 @@ jobs:
           echo "Granting MANAGE_EXTERNAL_STORAGE..."
           adb shell appops set info.sioyek.sioyek MANAGE_EXTERNAL_STORAGE allow
           echo "Launching sioyek..."
-          adb shell setprop debug.egl.force_es_version 30
           adb shell am start -n info.sioyek.sioyek/.SioyekActivity
 
       - name: Crash detection (30s)
