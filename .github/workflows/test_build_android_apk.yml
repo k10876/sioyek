@@ -221,6 +221,8 @@ jobs:
           APK=$(find apk/ -name '*.apk' | head -1)
           echo "Installing $APK..."
           adb install "$APK"
+          echo "Granting MANAGE_EXTERNAL_STORAGE..."
+          adb shell appops set info.sioyek.sioyek MANAGE_EXTERNAL_STORAGE allow
           echo "Launching sioyek..."
           adb shell am start -n info.sioyek.sioyek/.SioyekActivity
 
