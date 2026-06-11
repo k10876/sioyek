@@ -395,3 +395,4 @@ flake*
 # ctags
 tags
 .vscode
+STATUS.md
