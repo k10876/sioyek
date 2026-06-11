@@ -1,0 +1,45 @@
+
+name: Build Linux AARCH64
+
+on:
+  push:
+    branches:
+      - "*"
+  pull_request:
+    branches:
+      - "*"
+  workflow_dispatch:
+
+jobs:
+  build-linux-aarch64:
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
+
+    - name: Install dependencies
+      run: sudo apt-get update && sudo apt-get install -y build-essential libharfbuzz-dev libxrandr-dev libxi-dev libglu1-mesa-dev
+
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: '6.7.2'
+        modules: 'all'
+        cache: true
+
+    - name: Build
+      run: MAKE_PARALLEL=$(nproc) ./build_linux.sh
+      env:
+        CC: gcc
+        CXX: g++
+
+    - name: Package
+      run: zip -r sioyek-release-linux-aarch64.zip build/
+
+    - name: Upload AARCH64 artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-aarch64-uploads
+        path: sioyek-release-linux-aarch64.zip
