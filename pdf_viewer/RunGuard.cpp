@@ -46,13 +46,19 @@ memoryKey(generateKeyHash(key, "_sharedMemKey"))
         //qDebug() << "Shared memory already exists: this is a secondary application.";
         //qDebug() << "Secondary application attaching to shared memory block...";
         if (!memory->attach()) {
-            qCritical() << "Secondary application cannot attach to shared memory block.";
-            QCoreApplication::exit();
+            // Shared memory is unavailable (e.g. proot without SysV IPC).
+            // Fall back to running as the primary instance.
+            qCritical() << "Shared memory unavailable, running without single-instance guard.";
+            isPrimary = true;
         }
         //qDebug() << "Secondary application successfully attached to shared memory block.";
     }
 
-    memory->lock();
+    bool memoryLocked = false;
+    if (memory->isAttached()) {
+        memory->lock();
+        memoryLocked = true;
+    }
     if (isPrimary) { // Start primary server.
         //qDebug() << "Starting IPC server...";
         QLocalServer::removeServer(key);
@@ -68,20 +74,26 @@ memoryKey(generateKeyHash(key, "_sharedMemKey"))
         QObject::connect(server, &QLocalServer::newConnection,
             this, &RunGuard::onNewConnection);
     }
-    memory->unlock();
+    if (memoryLocked) {
+        memory->unlock();
+    }
 }
 
 RunGuard::~RunGuard()
 {
     bool was_server = false;
-    memory->lock();
+    if (memory->isAttached()) {
+        memory->lock();
+    }
     if (server) {
         was_server = true;
         server->close();
         delete server;
         server = nullptr;
     }
-    memory->unlock();
+    if (memory->isAttached()) {
+        memory->unlock();
+    }
     if (was_server){
         delete memory;
     }
