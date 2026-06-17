@@ -367,12 +367,13 @@ void PdfViewOpenGLWidget::initializeGL() {
 
     initializeOpenGLFunctions();
 
-    // ---- Diagnostic / robustness: context info + handle context loss ----
-    // With Qt::AA_ShareOpenGLContexts, all QOpenGLWidgets share a single context.
-    // That context can be destroyed/recreated by Qt (display change, new top-level
-    // window on some platforms/drivers). Our cached GL object ids (programs,
-    // buffers, textures) would then become stale and rendering silently fails
-    // (blank window). Detect context teardown and force re-creation of resources.
+    // ---- Diagnostic info ----
+    // NOTE: with Qt::AA_ShareOpenGLContexts all widgets share a single context /
+    // share group. We must NOT invalidate the shared GL objects (programs, buffers)
+    // or the cached textures when an individual widget's context is destroyed,
+    // because those objects are still in use by the OTHER live widgets. Doing so
+    // zeroes the shared buffer ids and makes every other window render blank
+    // ("GL_INVALID_OPERATION in glBufferData(no buffer bound)"). So we only log.
     QOpenGLContext* ctx = QOpenGLContext::currentContext();
     if (sioyek_gl_debug_enabled()) {
         fprintf(stderr, "[sioyek-gl][w=%p] initializeGL: ctx=%p is_initialized=%d\n",
@@ -385,25 +386,12 @@ void PdfViewOpenGLWidget::initializeGL() {
         fflush(stderr);
     }
     if (ctx) {
-        // Connect once. Functor-based connections with `this` as context are
-        // automatically disconnected when `this` (the widget) is destroyed, so
-        // there is no dangling-pointer risk. If the same context re-runs
-        // initializeGL, a duplicate connection is harmless (the reset is
-        // idempotent).
-        connect(ctx, &QOpenGLContext::aboutToBeDestroyed, this, [this]() {
-            if (sioyek_gl_debug_enabled()) {
-                fprintf(stderr, "[sioyek-gl][w=%p] aboutToBeDestroyed: invalidating shared GL resources + texture cache\n", (void*)this);
+        if (sioyek_gl_debug_enabled()) {
+            connect(ctx, &QOpenGLContext::aboutToBeDestroyed, this, [this]() {
+                fprintf(stderr, "[sioyek-gl][w=%p] aboutToBeDestroyed (context only; shared objects left intact)\n", (void*)this);
                 fflush(stderr);
-            }
-            // GL objects belonging to this context are about to become invalid.
-            shared_gl_objects.is_initialized = false;
-            shared_gl_objects.vertex_buffer_object = 0;
-            shared_gl_objects.uv_buffer_object = 0;
-            shared_gl_objects.line_points_buffer_object = 0;
-            // Tell the renderer its cached texture ids are now invalid so they
-            // are recreated on next use (pixmaps, if still present, are re-uploaded).
-            if (pdf_renderer) pdf_renderer->invalidate_all_textures();
-        });
+            });
+        }
 
         // Install a debug callback (if supported) so we get the exact source
         // of any GL error (very useful on Mesa/Zink to localize blank renders).

@@ -182,8 +182,13 @@ GLuint PdfRenderer::find_rendered_page(std::wstring path, int page, bool should_
                     }
 
 #ifdef GL_CLAMP
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+                    // GL_CLAMP (0x2900) is removed in the OpenGL Core profile and produces
+                    // GL_INVALID_ENUM on Core-profile contexts (and on Mesa/Zink, where the
+                    // error can poison the texture object and blank the page). Use
+                    // GL_CLAMP_TO_EDGE, which is valid in Core and is the correct behaviour
+                    // for full-page textures.
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 #else
                     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
                     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
