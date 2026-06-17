@@ -858,7 +858,8 @@ PdfViewOpenGLWidget::PdfViewOpenGLWidget(DocumentView* document_view, PdfRendere
 #endif
     //    format.setSwapBehavior(QSurfaceFormat::SwapBehavior::SingleBuffer);
     //    format.setSwapInterval(0);
-    format.setSamples(4);
+    extern int MSAA_SAMPLES;
+    if (MSAA_SAMPLES > 0) format.setSamples(MSAA_SAMPLES);
     format.setProfile(QSurfaceFormat::CoreProfile);
     this->setFormat(format);
 

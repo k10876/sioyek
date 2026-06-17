@@ -181,6 +181,7 @@ std::wstring STARTUP_COMMANDS = L"";
 
 bool ALIGN_LINK_DEST_TO_TOP = false;
 int MAX_TAB_COUNT = 100;
+int MSAA_SAMPLES = 4; // number of MSAA samples for the OpenGL surface (0 disables multisampling). Some Mesa/Zink+Turnip setups blank pages with MSAA on.
 float SMALL_PIXMAP_SCALE = 0.75f;
 float DISPLAY_RESOLUTION_SCALE = -1;
 float FIT_TO_PAGE_WIDTH_RATIO = 0.75;
@@ -1115,6 +1116,7 @@ ConfigManager::ConfigManager(const Path& default_path, const Path& auto_path, co
     add_int(L"num_prerendered_next_slides", &NUM_PRERENDERED_NEXT_SLIDES, IntExtras{0, 5});
     add_int(L"num_cached_pages", &NUM_CACHED_PAGES, IntExtras{0, 100});
     add_int(L"num_prerendered_prev_slides", &NUM_PRERENDERED_PREV_SLIDES, IntExtras{0, 5});
+    add_int(L"msaa_samples", &MSAA_SAMPLES, IntExtras{0, 16});
     add_int(L"keyboard_select_font_size", &KEYBOARD_SELECT_FONT_SIZE, IntExtras{1, 100});
     add_int(L"documentation_font_size", &DOCUMENTATION_FONT_SIZE, IntExtras{1, 100});
     add_int(L"status_bar_font_size", &STATUS_BAR_FONT_SIZE, IntExtras{1, 100});
