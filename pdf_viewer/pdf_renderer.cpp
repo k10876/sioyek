@@ -1,6 +1,8 @@
 #include "pdf_renderer.h"
 #include "utils.h"
 #include <qdatetime.h>
+#include <cstdio>
+#include <cstdlib>
 
 extern bool LINEAR_TEXTURE_FILTERING;
 extern int NUM_V_SLICES;
@@ -194,6 +196,15 @@ GLuint PdfRenderer::find_rendered_page(std::wstring path, int page, bool should_
                     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
                     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, cached_resp.pixmap->w, cached_resp.pixmap->h, 0, GL_RGB, GL_UNSIGNED_BYTE, cached_resp.pixmap->samples);
                     glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+
+                    if (getenv("SIOYEK_DEBUG_GL")) {
+                        GLenum e = glGetError();
+                        if (e != GL_NO_ERROR) {
+                            fprintf(stderr, "[sioyek-gl] glTexImage2D(w=%d h=%d) -> GL error 0x%x\n",
+                                    cached_resp.pixmap->w, cached_resp.pixmap->h, (unsigned)e);
+                            fflush(stderr);
+                        }
+                    }
 
                     // don't need the pixmap anymore
                     pixmap_drop_mutex[cached_resp.thread].lock();

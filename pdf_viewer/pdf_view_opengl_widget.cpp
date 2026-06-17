@@ -404,6 +404,24 @@ void PdfViewOpenGLWidget::initializeGL() {
             // are recreated on next use (pixmaps, if still present, are re-uploaded).
             if (pdf_renderer) pdf_renderer->invalidate_all_textures();
         });
+
+        // Install a debug callback (if supported) so we get the exact source
+        // of any GL error (very useful on Mesa/Zink to localize blank renders).
+        if (sioyek_gl_debug_enabled() && ctx->hasExtension("GL_KHR_debug")) {
+            glEnable(GL_DEBUG_OUTPUT);
+            // Synchronous so the callback runs at the offending call site.
+            glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+            glDebugMessageCallback([](GLenum source, GLenum type, GLuint id, GLenum severity,
+                                      GLsizei, const GLchar* msg, const void*) {
+                // Only print errors / high+medium severity to avoid spam.
+                if (type == GL_DEBUG_TYPE_ERROR || severity == GL_DEBUG_SEVERITY_HIGH
+                    || severity == GL_DEBUG_SEVERITY_MEDIUM) {
+                    fprintf(stderr, "[sioyek-gl] GL_DEBUG type=0x%x sev=0x%x id=%u: %s",
+                            (unsigned)type, (unsigned)severity, (unsigned)id, msg);
+                    fflush(stderr);
+                }
+            }, nullptr);
+        }
     }
 
     if (!shared_gl_objects.is_initialized) {
