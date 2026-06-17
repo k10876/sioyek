@@ -390,7 +390,7 @@ void PdfViewOpenGLWidget::initializeGL() {
         // there is no dangling-pointer risk. If the same context re-runs
         // initializeGL, a duplicate connection is harmless (the reset is
         // idempotent).
-        connect(ctx, &QOpenGLContext::aboutToBeDestroyed, this, [this](QObject*) {
+        connect(ctx, &QOpenGLContext::aboutToBeDestroyed, this, [this]() {
             if (sioyek_gl_debug_enabled()) {
                 fprintf(stderr, "[sioyek-gl][w=%p] aboutToBeDestroyed: invalidating shared GL resources + texture cache\n", (void*)this);
                 fflush(stderr);
