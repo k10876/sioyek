@@ -112,6 +112,7 @@ public:
     PdfRenderer(int num_threads, bool* should_quit_pointer, fz_context* context_to_clone);
     ~PdfRenderer();
     void clear_cache();
+    void invalidate_all_textures();
 
     void start_threads();
     void join_threads();

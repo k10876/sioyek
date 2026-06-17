@@ -504,6 +504,23 @@ void PdfRenderer::clear_cache() {
     delete_old_pages(false, true);
 }
 
+void PdfRenderer::invalidate_all_textures() {
+    // Called when the shared GL context is about to be destroyed. The cached
+    // texture ids (GLuints) are owned by that context and become invalid, so
+    // drop them. Keep pixmaps where we still have them so pages can be
+    // re-uploaded into new textures without re-rendering.
+    cached_response_mutex.lock();
+    for (auto& resp : cached_responses) {
+        // The texture id is dead. If we still have the pixmap we can re-upload;
+        // otherwise the page must be re-rendered from scratch.
+        resp.texture = 0;
+        if (resp.pixmap == nullptr) {
+            resp.invalid = true;
+        }
+    }
+    cached_response_mutex.unlock();
+}
+
 void PdfRenderer::run(int thread_index) {
     fz_context* mupdf_context = init_context();
     thread_contexts[thread_index] = mupdf_context;

@@ -1,10 +1,15 @@
 #include <cmath>
+#include <cstdlib>
+#include <cstdio>
 
 #include <qcolor.h>
 #include <QMouseEvent>
 #include <qapplication.h>
 #include <qdatetime.h>
 #include <qfile.h>
+#include <qdebug.h>
+#include <QOpenGLContext>
+#include <QThread>
 
 #include "pdf_view_opengl_widget.h"
 #include "path.h"
@@ -176,6 +181,25 @@ GLfloat rotation_uvs[4][8] = {
 
 OpenGLSharedResources PdfViewOpenGLWidget::shared_gl_objects;
 
+// ---- Diagnostic helpers (env-gated, stderr) ----
+static bool sioyek_gl_debug_enabled() {
+    static bool v = (getenv("SIOYEK_DEBUG_GL") != nullptr);
+    return v;
+}
+#define SIOYEK_GL_LOG(...) do { if (sioyek_gl_debug_enabled()) { \
+    fprintf(stderr, "[sioyek-gl][w=%p t=%p] ", (void*)this, (void*)QThread::currentThread()); \
+    fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n"); fflush(stderr); } } while (0)
+
+static void sioyek_dump_gl_errors(const char* where) {
+    if (!sioyek_gl_debug_enabled()) return;
+    for (int i = 0; i < 8; i++) {
+        GLenum e = glGetError();
+        if (e == GL_NO_ERROR) break;
+        fprintf(stderr, "[sioyek-gl] GL error after %s: 0x%x\n", where, (unsigned)e);
+    }
+    fflush(stderr);
+}
+
 void generate_bezier_with_endpoints_and_velocity(
     Vec<float, 2> p0, 
     Vec<float, 2> p1, 
@@ -342,6 +366,45 @@ void PdfViewOpenGLWidget::initializeGL() {
     is_opengl_initialized = true;
 
     initializeOpenGLFunctions();
+
+    // ---- Diagnostic / robustness: context info + handle context loss ----
+    // With Qt::AA_ShareOpenGLContexts, all QOpenGLWidgets share a single context.
+    // That context can be destroyed/recreated by Qt (display change, new top-level
+    // window on some platforms/drivers). Our cached GL object ids (programs,
+    // buffers, textures) would then become stale and rendering silently fails
+    // (blank window). Detect context teardown and force re-creation of resources.
+    QOpenGLContext* ctx = QOpenGLContext::currentContext();
+    if (sioyek_gl_debug_enabled()) {
+        fprintf(stderr, "[sioyek-gl][w=%p] initializeGL: ctx=%p is_initialized=%d\n",
+                (void*)this, (void*)ctx, (int)shared_gl_objects.is_initialized);
+        if (ctx) {
+            QSurface* surf = ctx->surface();
+            fprintf(stderr, "[sioyek-gl][w=%p]   shareGroup=%p surface=%p\n",
+                    (void*)this, (void*)ctx->shareGroup(), (void*)surf);
+        }
+        fflush(stderr);
+    }
+    if (ctx) {
+        // Connect once. Functor-based connections with `this` as context are
+        // automatically disconnected when `this` (the widget) is destroyed, so
+        // there is no dangling-pointer risk. If the same context re-runs
+        // initializeGL, a duplicate connection is harmless (the reset is
+        // idempotent).
+        connect(ctx, &QOpenGLContext::aboutToBeDestroyed, this, [this](QObject*) {
+            if (sioyek_gl_debug_enabled()) {
+                fprintf(stderr, "[sioyek-gl][w=%p] aboutToBeDestroyed: invalidating shared GL resources + texture cache\n", (void*)this);
+                fflush(stderr);
+            }
+            // GL objects belonging to this context are about to become invalid.
+            shared_gl_objects.is_initialized = false;
+            shared_gl_objects.vertex_buffer_object = 0;
+            shared_gl_objects.uv_buffer_object = 0;
+            shared_gl_objects.line_points_buffer_object = 0;
+            // Tell the renderer its cached texture ids are now invalid so they
+            // are recreated on next use (pixmaps, if still present, are re-uploaded).
+            if (pdf_renderer) pdf_renderer->invalidate_all_textures();
+        });
+    }
 
     if (!shared_gl_objects.is_initialized) {
         // we initialize the shared opengl objects here. Ideally we should have initialized them before any object
@@ -740,6 +803,15 @@ void PdfViewOpenGLWidget::render_scratchpad(QPainter* painter) {
 
 void PdfViewOpenGLWidget::paintGL() {
 
+    bool dbg = sioyek_gl_debug_enabled();
+    if (dbg) {
+        GLint fbo = 0;
+        glGetIntegerv(GL_FRAMEBUFFER_BINDING, &fbo);
+        fprintf(stderr, "[sioyek-gl][w=%p] paintGL start: valid_doc=%d is_helper=%d fbo=%d ctx=%p\n",
+                (void*)this, (int)valid_document(), (int)is_helper, (int)fbo, (void*)QOpenGLContext::currentContext());
+        fflush(stderr);
+    }
+
     QPainter painter(this);
 
     QColor red_color = QColor::fromRgb(255, 0, 0);
@@ -750,6 +822,14 @@ void PdfViewOpenGLWidget::paintGL() {
     }
     else {
         render_scratchpad(&painter);
+    }
+
+    if (dbg) {
+        sioyek_dump_gl_errors("paintGL");
+        GLint fbo = 0;
+        glGetIntegerv(GL_FRAMEBUFFER_BINDING, &fbo);
+        fprintf(stderr, "[sioyek-gl][w=%p] paintGL end: fbo=%d\n", (void*)this, (int)fbo);
+        fflush(stderr);
     }
 
     //painter.drawText(-100, -100, "1234567890");
@@ -1073,6 +1153,13 @@ void PdfViewOpenGLWidget::render_page(int page_number, bool in_overview, ColorPa
             devicePixelRatioF(),
             &rendered_width,
             &rendered_height);
+
+        if (sioyek_gl_debug_enabled()) {
+            fprintf(stderr, "[sioyek-gl][w=%p] render_page page=%d slice=%d texture=%u w=%d h=%d prog(rendered)=%u\n",
+                    (void*)this, page_number, index, (unsigned)texture, rendered_width, rendered_height,
+                    (unsigned)shared_gl_objects.rendered_program);
+            fflush(stderr);
+        }
 
         if (is_helper && !texture){
             is_helper_waiting_for_render = true;
